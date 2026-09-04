@@ -39,6 +39,7 @@ test: debug
 e2e: debug
 	@python3 test/mock_server.py 8791 2>test/mock.log & \
 	pid=$$!; sleep 0.6; \
+	rm -rf test/e2e_home; \
 	CLAWDGET_CONFIG=test/e2e_config.json CLAWDGET_HOME=test/e2e_home \
 		./build-x86/clawdget -n "list the files in the workspace"; \
 	rc=$$?; kill $$pid 2>/dev/null; exit $$rc

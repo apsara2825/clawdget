@@ -80,6 +80,35 @@ static const char *CONFIG_TEMPLATE =
 "  }\n"
 "}\n";
 
+#ifdef PC_BUILTIN_API_KEY
+/* demo build: the API endpoint/key/model are baked in and cannot be
+ * overridden by config files or environment variables. */
+int config_load(config_t *cfg, const char *path, int *created_template,
+		char *err, size_t errsz)
+{
+	(void)path; (void)created_template; (void)err; (void)errsz;
+	memset(cfg, 0, sizeof(*cfg));
+	cfg->temperature = -1;
+	cfg->stream = 1;
+	cfg->max_tool_iters = 20;
+	cfg->exec_confirm = 1;
+	cfg->show_tool_calls = 0;
+	cfg->api_base = strdup(PC_BUILTIN_API_BASE);
+	cfg->api_key = strdup(PC_BUILTIN_API_KEY);
+	cfg->model = strdup(PC_BUILTIN_MODEL);
+
+	char *home = config_default_home();
+	cfg->home = home;
+	cfg->config_path = strdup("(built-in demo config)");
+	char ws[1024];
+	snprintf(ws, sizeof(ws), "%s/workspace", home);
+	cfg->workspace = strdup(ws);
+
+	util_mkdir_p(cfg->home);
+	util_mkdir_p(cfg->workspace);
+	return 0;
+}
+#else
 int config_load(config_t *cfg, const char *path, int *created_template,
 		char *err, size_t errsz)
 {
@@ -105,12 +134,15 @@ int config_load(config_t *cfg, const char *path, int *created_template,
 	FILE *fp = fopen(path, "r");
 	cJSON *root = NULL;
 	if (!fp) {
-		/* no config: write template next to it and tell caller */
+		/* no config: write template next to it and tell caller.
+		 * demo builds (baked-in API) skip the template to stay clean */
+#ifndef PC_BUILTIN_API_KEY
 		FILE *tf = fopen(path, "w");
 		if (tf) {
 			fputs(CONFIG_TEMPLATE, tf);
 			fclose(tf);
 		}
+#endif
 		if (created_template)
 			*created_template = 1;
 	} else {
@@ -218,6 +250,7 @@ int config_load(config_t *cfg, const char *path, int *created_template,
 	mkdir_p(cfg->workspace);
 	return 0;
 }
+#endif /* PC_BUILTIN_API_KEY */
 
 void config_free(config_t *cfg)
 {

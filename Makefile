@@ -18,7 +18,7 @@ CURL_LIB ?= $(HOME)/aiagent/clawdget/build-mips/lib
 SRC      := $(wildcard src/*.c) thirdparty/cjson.c
 CFLAGS   := -std=gnu99 -Wall -Wextra -Os -Isrc -Ithirdparty
 X86FLAGS := -std=gnu99 -Wall -Wextra -g -O0 -Isrc -Ithirdparty
-LDLIBS   := -lcurl
+LDLIBS   := -lcurl -lpthread
 
 .PHONY: all debug test e2e mips clean
 
@@ -33,7 +33,7 @@ build-x86/clawdget: $(SRC) | build-x86
 debug: build-x86/clawdget
 
 test: debug
-	$(CC) $(X86FLAGS) -Isrc test/test_sse.c thirdparty/cjson.c src/provider.c src/http.c -o build-x86/test_sse $(LDLIBS)
+	$(CC) $(X86FLAGS) -Isrc test/test_sse.c thirdparty/cjson.c src/provider.c src/http.c src/spinner.c -o build-x86/test_sse $(LDLIBS)
 	./build-x86/test_sse && echo "test_sse OK"
 
 e2e: debug

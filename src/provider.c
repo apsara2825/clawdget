@@ -8,6 +8,7 @@
 #include "cJSON.h"
 #include "provider.h"
 #include "http.h"
+#include "spinner.h"
 
 /* ---- stream accumulator ---- */
 typedef struct {
@@ -72,8 +73,10 @@ static void on_data(const char *payload, void *ud)
 				if (nc) {
 					st->resp->content = nc;
 					memcpy(st->resp->content + ol, c->valuestring, al + 1);
-					if (st->out)
+					if (st->out) {
+						pc_thinking_stop(); /* erase spinner before first token */
 						fwrite(c->valuestring, 1, al, st->out);
+					}
 				}
 			}
 			cJSON *tcs = cJSON_GetObjectItem(delta, "tool_calls");
@@ -213,7 +216,9 @@ int provider_chat(const config_t *cfg, cJSON *messages, cJSON *tools_defs,
 		st.resp = out;
 		st.out = out_stream;
 		pc_http_result res;
+		pc_thinking_start();
 		int rc = http_post_stream(url, cfg->api_key, reqbody, on_data, &st, &res);
+		pc_thinking_stop();
 		if (out_stream)
 			fflush(out_stream);
 		if (res.curl_err[0]) {
@@ -231,7 +236,9 @@ int provider_chat(const config_t *cfg, cJSON *messages, cJSON *tools_defs,
 		/* non-stream: buffered POST, parse the full JSON response */
 		char *resp_body = NULL;
 		pc_http_result res;
+		pc_thinking_start();
 		http_post_collect(url, cfg->api_key, reqbody, 8 << 20, &resp_body, &res);
+		pc_thinking_stop();
 		if (res.curl_err[0]) {
 			snprintf(err, errsz, "transport: %s", res.curl_err);
 		} else if (res.http_code != 200) {

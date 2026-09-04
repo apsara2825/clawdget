@@ -48,18 +48,6 @@ e2e: debug
 # e.g. -lssl/-lcrypto from the firmware).
 MIPS_LDFLAGS := $(if $(CURL_A),$(CURL_A),-lcurl) $(MIPS_LIBS)
 
-# demo build: bake API settings into the binary (for trial distribution)
-#   make mips-demo BUILTIN_API_BASE=... BUILTIN_API_KEY=... BUILTIN_MODEL=...
-DEMO_DEFINES := $(if $(BUILTIN_API_BASE),-DPC_BUILTIN_API_BASE=\"$(BUILTIN_API_BASE)\") \
-                $(if $(BUILTIN_API_KEY),-DPC_BUILTIN_API_KEY=\"$(BUILTIN_API_KEY)\") \
-                $(if $(BUILTIN_MODEL),-DPC_BUILTIN_MODEL=\"$(BUILTIN_MODEL)\")
-
-mips-demo:
-	mkdir -p build-mips
-	$(CROSS)gcc $(CFLAGS) -mips32r2 $(DEMO_DEFINES) \
-		-I$(CURL_INC) -L$(CURL_LIB) \
-		$(SRC) -o build-mips/clawdget-demo $(MIPS_LDFLAGS) $(MIPS_LIBS) -ldl -lpthread
-	$(CROSS)strip build-mips/clawdget-demo
 
 mips:
 	mkdir -p build-mips

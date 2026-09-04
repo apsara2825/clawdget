@@ -1,0 +1,244 @@
+/* clawdget: main.c - CLI entry: one-shot prompt / interactive REPL
+ *
+ * Usage:
+ *   clawdget [options] [prompt ...]   one-shot: answer a single prompt, exit
+ *   clawdget [options]                no prompt -> interactive REPL
+ *   clawdget ls                       list sessions
+ *   clawdget rm <key>                 delete a session
+ * Options:
+ *   -c <path>   config file (default ~/.clawdget/config.json)
+ *   -s <key>    session key to resume
+ *   -n          start a new session
+ *   -h          help
+ */
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <libgen.h>
+#include "config.h"
+#include "agent.h"
+#include "session.h"
+#include "util.h"
+#include "http.h"
+
+static void print_help(const char *prog)
+{
+	fprintf(stderr,
+		"clawdget: ultra-light AI agent (MT7628/OpenWrt)\n\n"
+		"Usage:\n"
+		"  %s [options] [prompt ...]   one-shot prompt\n"
+		"  %s [options]                interactive REPL\n"
+		"  %s ls                       list sessions\n"
+		"  %s rm <key>                 delete session\n\n"
+		"Options:\n"
+		"  -c <path>  config file (default ~/.clawdget/config.json)\n"
+		"  -s <key>   resume session <key>\n"
+		"  -n         start a new session\n"
+		"  -y         auto mode: run tools without confirmation\n"
+		"  -h         this help\n\n"
+		"REPL commands: /new /ls /resume <key> /rm <key> /help /quit\n",
+		prog, prog, prog, prog);
+}
+
+static void print_sessions(const config_t *cfg)
+{
+	cJSON *list = session_list(cfg);
+	int n = cJSON_GetArraySize(list);
+	if (n == 0) {
+		printf("(no sessions)\n");
+		cJSON_Delete(list);
+		return;
+	}
+	for (int i = 0; i < n; i++) {
+		cJSON *m = cJSON_GetArrayItem(list, i);
+		cJSON *k = cJSON_GetObjectItem(m, "key");
+		cJSON *c = cJSON_GetObjectItem(m, "count");
+		cJSON *u = cJSON_GetObjectItem(m, "updated_at");
+		printf("%-24s %4d msgs  %s\n",
+		       cJSON_IsString(k) ? k->valuestring : "?",
+		       cJSON_IsNumber(c) ? (int)c->valuedouble : 0,
+		       cJSON_IsString(u) ? u->valuestring : "");
+	}
+	cJSON_Delete(list);
+}
+
+/* run one prompt through the agent; exits on error with message */
+static void run_prompt(const config_t *cfg, session_t *sess, const char *prompt)
+{
+	char err[1024] = "";
+	if (agent_turn(cfg, sess, prompt, err, sizeof(err)) != 0) {
+		fprintf(stderr, "error: %s\n", err);
+	}
+}
+
+int main(int argc, char **argv)
+{
+	const char *cfg_path = NULL;
+	const char *sess_key = NULL;
+	int force_new = 0;
+	int auto_mode = 0;
+	int nargs = 0;
+	const char **promptv = calloc((size_t)argc, sizeof(char *));
+
+	for (int i = 1; i < argc; i++) {
+		if (!strcmp(argv[i], "-c") && i + 1 < argc) {
+			cfg_path = argv[++i];
+		} else if (!strcmp(argv[i], "-s") && i + 1 < argc) {
+			sess_key = argv[++i];
+		} else if (!strcmp(argv[i], "-n")) {
+			force_new = 1;
+		} else if (!strcmp(argv[i], "-y") || !strcmp(argv[i], "--auto")) {
+			auto_mode = 1;
+		} else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
+			print_help(basename(argv[0]));
+			free(promptv);
+			return 0;
+		} else if (!strcmp(argv[i], "ls") && i + 1 == argc) {
+			/* subcommand: list sessions */
+			config_t cfg;
+			char err[256];
+			int created;
+			if (config_load(&cfg, cfg_path, &created, err, sizeof(err)) != 0) {
+				fprintf(stderr, "error: %s\n", err);
+				return 1;
+			}
+			print_sessions(&cfg);
+			config_free(&cfg);
+			free(promptv);
+			return 0;
+		} else if (!strcmp(argv[i], "rm") && i + 1 < argc) {
+			config_t cfg;
+			char err[256];
+			int created;
+			if (config_load(&cfg, cfg_path, &created, err, sizeof(err)) != 0) {
+				fprintf(stderr, "error: %s\n", err);
+				return 1;
+			}
+			int rc = session_delete(&cfg, argv[i + 1]);
+			printf("%s: %s\n", argv[i + 1], rc == 0 ? "deleted" : "not found");
+			config_free(&cfg);
+			free(promptv);
+			return rc == 0 ? 0 : 1;
+		} else {
+			promptv[nargs++] = argv[i];
+		}
+	}
+
+	config_t cfg;
+	char err[1024];
+	int created = 0;
+	if (config_load(&cfg, cfg_path, &created, err, sizeof(err)) != 0) {
+		fprintf(stderr, "error: %s\n", err);
+		return 1;
+	}
+	if (auto_mode)
+		cfg.exec_confirm = 0;
+	if (!cfg.api_key || !cfg.api_base || !cfg.model) {
+		if (created)
+			fprintf(stderr,
+				"Created config template at %s\n"
+				"Edit it (api_base/api_key/model) and run again.\n",
+				cfg.config_path);
+		else
+			fprintf(stderr,
+				"error: config needs api_base, api_key and model "
+				"(see %s)\n", cfg.config_path);
+		return 1;
+	}
+
+	pc_http_ca_info = cfg.ca_info;
+
+	/* open session */
+	session_t sess;
+	if (force_new) {
+		char *nk = session_new_key();
+		if (session_open(&sess, &cfg, nk, NULL) != 0) {
+			fprintf(stderr, "error: cannot open session\n");
+			return 1;
+		}
+		free(nk);
+	} else {
+		int is_new = 0;
+		if (session_open(&sess, &cfg, sess_key, &is_new) != 0) {
+			fprintf(stderr, "error: cannot open session\n");
+			return 1;
+		}
+	}
+	fprintf(stderr, "[session %s]\n", sess.key);
+
+	if (nargs > 0) {
+		/* one-shot: join argv words into one prompt */
+		size_t total = 1;
+		for (int i = 0; i < nargs; i++)
+			total += strlen(promptv[i]) + 1;
+		char *prompt = malloc(total);
+		prompt[0] = 0;
+		for (int i = 0; i < nargs; i++) {
+			strcat(prompt, promptv[i]);
+			if (i + 1 < nargs)
+				strcat(prompt, " ");
+		}
+		run_prompt(&cfg, &sess, prompt);
+		free(prompt);
+		session_close(&sess);
+		config_free(&cfg);
+		free(promptv);
+		return 0;
+	}
+
+	/* REPL */
+	fprintf(stderr, "interactive mode; /help for commands\n");
+	for (;;) {
+		fputs("clawdget> ", stderr);
+		fflush(stderr);
+		char *line = util_read_line(stdin);
+		if (!line) {
+			fputc('\n', stderr);
+			break;
+		}
+		if (!*line) {
+			free(line);
+			continue;
+		}
+		if (line[0] == '/') {
+			if (!strcmp(line, "/quit") || !strcmp(line, "/exit")) {
+				free(line);
+				break;
+			} else if (!strcmp(line, "/help")) {
+				fprintf(stderr, "/new /ls /resume <key> /rm <key> /quit\n");
+			} else if (!strcmp(line, "/new")) {
+				session_close(&sess);
+				char *nk = session_new_key();
+				session_open(&sess, &cfg, nk, NULL);
+				free(nk);
+				fprintf(stderr, "[session %s]\n", sess.key);
+			} else if (!strcmp(line, "/ls")) {
+				print_sessions(&cfg);
+			} else if (!strncmp(line, "/resume ", 8)) {
+				const char *key = line + 8;
+				session_t ns;
+				if (session_open(&ns, &cfg, key, NULL) == 0) {
+					session_close(&sess);
+					sess = ns;
+					fprintf(stderr, "[session %s]\n", sess.key);
+				} else {
+					fprintf(stderr, "cannot open session %s\n", key);
+				}
+			} else if (!strncmp(line, "/rm ", 4)) {
+				session_delete(&cfg, line + 4);
+			} else {
+				fprintf(stderr, "unknown command: %s\n", line);
+			}
+			free(line);
+			continue;
+		}
+		run_prompt(&cfg, &sess, line);
+		free(line);
+	}
+
+	session_close(&sess);
+	config_free(&cfg);
+	free(promptv);
+	return 0;
+}

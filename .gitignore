@@ -1,0 +1,8 @@
+build-x86/
+build-mips/
+local.mk
+test/e2e_home/
+*.o
+build-mips2/
+test/mock.log
+test/mock.pid

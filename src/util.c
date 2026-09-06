@@ -120,6 +120,32 @@ int util_path_under(const char *path, const char *base, char *err, size_t errsz)
 	return 1;
 }
 
+/* replace invalid UTF-8 bytes with '?' so output is safe to embed in JSON */
+void util_utf8_sanitize(char *s)
+{
+	for (; *s; ) {
+		unsigned char c = (unsigned char)*s;
+		if (c < 0x80) {
+			s++;
+			continue;
+		}
+		int len = 0;
+		if ((c & 0xE0) == 0xC0) len = 2;
+		else if ((c & 0xF0) == 0xE0) len = 3;
+		else if ((c & 0xF8) == 0xF0) len = 4;
+		int ok = len > 0;
+		for (int i = 1; ok && i < len; i++) {
+			if (((unsigned char)s[i] & 0xC0) != 0x80)
+				ok = 0;
+		}
+		if (ok && s[len - 1] != 0) {
+			s += len;
+		} else {
+			*s++ = '?';
+		}
+	}
+}
+
 void util_trunc_note(char *buf, size_t bufsz, const char *what)
 {
 	char note[128];

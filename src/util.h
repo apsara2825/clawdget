@@ -20,6 +20,9 @@ void util_mkdir_p(const char *path);
  * returns 1 if ok */
 int util_path_under(const char *path, const char *base, char *err, size_t errsz);
 
+/* replace invalid UTF-8 bytes in-place with '?' (for JSON safety) */
+void util_utf8_sanitize(char *s);
+
 /* truncation notice suffix appended to tool output */
 void util_trunc_note(char *buf, size_t bufsz, const char *what);
 

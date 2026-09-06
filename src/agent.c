@@ -8,6 +8,7 @@
 #include "prompt.h"
 #include "provider.h"
 #include "tools.h"
+#include "util.h"
 
 /* load session history + this turn's system prompt into a messages array */
 static cJSON *build_messages(const config_t *cfg, session_t *sess,
@@ -122,6 +123,12 @@ int agent_turn(const config_t *cfg, session_t *sess, const char *user_prompt,
 				char ebuf[600];
 				snprintf(ebuf, sizeof(ebuf), "ERROR: %s", terr);
 				cJSON_AddStringToObject(tm, "content", ebuf);
+			}
+			if (result) {
+				util_utf8_sanitize(result);
+				cJSON *cj = cJSON_GetObjectItem(tm, "content");
+				if (cj && cj->valuestring)
+					util_utf8_sanitize(cj->valuestring);
 			}
 			session_append(sess, tm);
 			cJSON_AddItemToArray(msgs, tm); /* ownership */

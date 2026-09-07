@@ -23,23 +23,14 @@ jobs:
           path: release/clawdget-linux-x86_64
 
   mips:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: install musl cross toolchain
-        run: |
-          for url in \
-            https://musl.cc/mipsel-linux-musl-cross.tgz \
-            https://more.musl.cc/x86_64-linux-musl/mipsel-linux-musl-cross.tgz ; do
-            echo "trying $url"
-            wget -q --timeout=60 --tries=2 -O toolchain.tgz "$url" && \
-              tar xzf toolchain.tgz && break
-          done
-          test -d mipsel-linux-musl-cross || { echo "all mirrors failed"; exit 1; }
-          echo "$PWD/mipsel-linux-musl-cross/bin" >> $GITHUB_PATH
+      - name: install mipsel cross gcc
+        run: sudo apt-get update && sudo apt-get install -y gcc-mipsel-linux-gnu libc6-dev-mipsel-cross
       - name: build static
         run: |
-          CROSS=mipsel-linux-musl- ./build-static.sh release
+          CROSS=mipsel-linux-gnu- ./build-static.sh release
           mv release/clawdget release/clawdget-linux-mipsel
       - uses: actions/upload-artifact@v4
         with:

@@ -6,3 +6,4 @@ test/e2e_home/
 build-mips2/
 test/mock.log
 test/mock.pid
+test/tmp-skill-serve/

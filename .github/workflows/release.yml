@@ -33,7 +33,7 @@ jobs:
           echo "$PWD/mipsel-linux-musl-cross/bin" >> $GITHUB_PATH
       - name: build static
         run: |
-          CROSS=mipsel-linux-musl- ./scripts/build-static.sh release
+          CROSS=mipsel-linux-musl- ./build-static.sh release
           mv release/clawdget release/clawdget-linux-mipsel
       - uses: actions/upload-artifact@v4
         with:

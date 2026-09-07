@@ -8,9 +8,9 @@
 # CURL_LIB at a libcurl built FOR THE TARGET:
 #   make mips CROSS=mipsel-openwrt-linux- \
 #        CURL_INC=/path/target-curl/include CURL_LIB=/path/target-curl/lib
-# Or use scripts/build-static.sh, which builds mbedtls + curl statically and
+# Or use build-static.sh, which builds mbedtls + curl statically and
 # produces a single-file binary with zero runtime dependencies:
-#   CROSS=mipsel-linux-musl- ./scripts/build-static.sh
+#   CROSS=mipsel-linux-musl- ./build-static.sh
 # Personal overrides go in local.mk (git-ignored).
 
 -include local.mk

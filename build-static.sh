@@ -15,7 +15,7 @@
 #   OUT      output dir (default: build-static)
 
 set -e
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")"
 
 : "${CROSS:?set CROSS=<toolchain-prefix>, e.g. CROSS=mipsel-linux-musl-}"
 JOBS="${JOBS:-$(nproc 2>/dev/null || echo 4)}"
@@ -44,18 +44,21 @@ if [ ! -d "$DEPS/curl-$CURL_VER" ]; then
     tar xzf "$DEPS/curl-$CURL_VER.tar.gz" -C "$DEPS"
 fi
 
-echo "==> building mbedtls (static)"
-STAGE="$DEPS/stage-$TRIPLE"
+echo "==> building mbedtls"
+STAGE="$DEPS_ABS/stage-$TRIPLE"
 rm -rf "$STAGE"
 mkdir -p "$STAGE/include" "$STAGE/lib"
 if [ ! -f "$DEPS/mbedtls-$MBEDTLS_VER/library/libmbedcrypto.a" ] || \
    [ "$DEPS/mbedtls-$MBEDTLS_VER/library/libmbedcrypto.a" -ot "$DEPS/mbedtls-$MBEDTLS_VER.tar.gz" ]; then
+    # SHARED=1 so curl's configure can detect mbedtls via the .so files;
+    # the final clawdget link still uses the .a archives (fully static).
     make -C "$DEPS/mbedtls-$MBEDTLS_VER" clean > /dev/null 2>&1 || true
-    make -C "$DEPS/mbedtls-$MBEDTLS_VER" -j"$JOBS" SHARED=0 \
+    make -C "$DEPS/mbedtls-$MBEDTLS_VER" -j"$JOBS" SHARED=1 \
         CC="$CC" AR="$AR" CFLAGS="-std=gnu99 -O2" > /dev/null
 fi
 cp -r "$DEPS/mbedtls-$MBEDTLS_VER/include/." "$STAGE/include/"
-cp "$DEPS/mbedtls-$MBEDTLS_VER/library/"*.a "$STAGE/lib/"
+cp "$DEPS/mbedtls-$MBEDTLS_VER/library/"*.a "$STAGE/lib/" 2>/dev/null || true
+cp "$DEPS/mbedtls-$MBEDTLS_VER/library/"libmbed*.so* "$STAGE/lib/" 2>/dev/null || true
 
 echo "==> building curl (static, mbedtls backend)"
 if [ ! -f "$DEPS/curl-$CURL_VER/lib/.libs/libcurl.a" ]; then
@@ -72,7 +75,8 @@ if [ ! -f "$DEPS/curl-$CURL_VER/lib/.libs/libcurl.a" ]; then
         --disable-ldap --disable-ldaps --disable-manual \
         --disable-threaded-resolver \
         --disable-shared --enable-static \
-        CC="$CC" > "$DEPS_ABS/curl-conf.log" 2>&1
+        CC="$CC" LDFLAGS="-Wl,-rpath-link=$STAGE/lib" \
+        > "$DEPS_ABS/curl-conf.log" 2>&1
     make -j"$JOBS" > "$DEPS_ABS/curl-build.log" 2>&1
     )
 [ -f "$DEPS/curl-$CURL_VER/lib/.libs/libcurl.a" ] || \

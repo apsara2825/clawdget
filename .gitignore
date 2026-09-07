@@ -10,3 +10,4 @@ test/tmp-skill-serve/
 test/tmp-skill-serve/
 deploy.sh
 deploy/
+scripts/

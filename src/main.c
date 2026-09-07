@@ -108,6 +108,37 @@ static int choose_session(const config_t *cfg, char *out, size_t sz)
 	return 0;
 }
 
+/* print the last n user/assistant messages so resuming has context */
+static void print_recent(session_t *sess, int n)
+{
+	cJSON *hist = session_load(sess);
+	int total = cJSON_GetArraySize(hist);
+	int shown = 0;
+	int start = total - n;
+	if (start < 0)
+		start = 0;
+	for (int i = start; i < total; i++) {
+		cJSON *m = cJSON_GetArrayItem(hist, i);
+		cJSON *r = cJSON_GetObjectItem(m, "role");
+		cJSON *c = cJSON_GetObjectItem(m, "content");
+		const char *role = cJSON_IsString(r) ? r->valuestring : "?";
+		if (!cJSON_IsString(c) || !c->valuestring[0])
+			continue; /* tool_calls carriers / tool outputs */
+		char buf[80];
+		size_t j = 0;
+		for (const char *p = c->valuestring; *p && j < sizeof(buf) - 4; p++)
+			buf[j++] = (*p == '\n' || *p == '\r') ? ' ' : *p;
+		buf[j] = 0;
+		fprintf(stderr, "  %s: %s%s\n", role, buf,
+			strlen(c->valuestring) > (size_t)j ? "..." : "");
+		shown++;
+	}
+	cJSON_Delete(hist);
+	if (shown > 0)
+		fprintf(stderr, "--- (%d recent message%s) ---\n", shown,
+			shown > 1 ? "s" : "");
+}
+
 /* run one prompt through the agent; exits on error with message */
 static void run_prompt(const config_t *cfg, session_t *sess, const char *prompt)
 {
@@ -312,6 +343,8 @@ int main(int argc, char **argv)
 			fprintf(stderr, "error: cannot open session\n");
 			return 1;
 		}
+		if (!is_new)
+			print_recent(&sess, 3);
 	}
 	fprintf(stderr, "[session %s]\n", sess.key);
 
@@ -375,6 +408,7 @@ int main(int argc, char **argv)
 						session_close(&sess);
 						sess = ns;
 						fprintf(stderr, "[session %s]\n", sess.key);
+						print_recent(&sess, 3);
 					}
 				}
 			} else if (!strncmp(line, "/resume ", 8)) {
@@ -384,6 +418,7 @@ int main(int argc, char **argv)
 					session_close(&sess);
 					sess = ns;
 					fprintf(stderr, "[session %s]\n", sess.key);
+					print_recent(&sess, 3);
 				} else {
 					fprintf(stderr, "cannot open session %s\n", key);
 				}

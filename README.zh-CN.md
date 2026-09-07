@@ -39,10 +39,8 @@ clawdget 装在你的路由器上之后，它就是一个"住在设备里的 AI"
 
 | 文件 | 适合什么设备 | 说明 |
 |---|---|---|
-| `clawdget-linux-mipsel` | MT7628/MT7688 等 MIPS 路由器 | 全静态（~2MB），任何 mipsel Linux 都能跑，**推荐** |
-| `clawdget-linux-mipsel-slim` | 同上 | 精简版（~550KB），要求固件自带 openssl（多数 OpenWrt 都有） |
-| `clawdget-linux-x86_64` | x86 电脑、软路由、服务器 | 需要系统已安装 libcurl（`apt install libcurl4`） |
-| ARM 版 | ARM 开发板/设备 | 暂需自行编译，见下文 |
+| `clawdget-linux-mipsel-slim` | MT7628/MT7688 等 MIPS 路由器 | 精简版 ~550KB，要求固件自带 openssl（多数 OpenWrt 都有） |
+| x86 / ARM 设备 | 电脑、开发板等 | 请按下方「自己编译」自行构建 |
 
 传到设备上并赋予执行权限（在你的电脑上执行，`192.168.x.1` 换成路由器 IP）：
 

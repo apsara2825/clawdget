@@ -6,7 +6,7 @@
 
 Run an OpenAI-compatible AI agent on hardware that was never supposed to run AI.
 
-![size](https://img.shields.io/badge/binary-550%20KB-blue)
+![size](https://img.shields.io/badge/binary-550%20KB~2MB-blue)
 ![ram](https://img.shields.io/badge/RAM-%3C1%20MB-success)
 ![arch](https://img.shields.io/badge/arch-MIPS%20%7C%20ARM%20%7C%20x86-informational)
 ![license](https://img.shields.io/badge/license-MIT-green)
@@ -54,7 +54,7 @@ spectrum — a single C binary you drop into `/usr/bin` of a router:
 
 | | clawdget | typical Python agent |
 |---|---|---|
-| binary size | ~550 KB | 50 MB+ runtime |
+| binary size | ~550 KB (slim) – 2 MB (fully static) | 50 MB+ runtime |
 | RAM in use | < 1 MB | 30 MB+ |
 | startup | instant | seconds |
 | dependencies | your firmware's own libssl/libcrypto | Python + dozens of packages |
@@ -134,8 +134,13 @@ and follows it. No execution engine, no sandbox — just instructions.
 ### Prebuilt binaries
 
 Check the [Releases](https://github.com/apsara2825/clawdget/releases) page —
-pushing a `v*` tag triggers CI, which builds and attaches binaries
-(`linux-x86_64`, `linux-mipsel` fully static).
+pushing a `v*` tag triggers CI, which builds and attaches binaries:
+
+| asset | what it is |
+|---|---|
+| `clawdget-linux-x86_64` | x86 build, dynamically linked against system libcurl (`apt install libcurl4`) |
+| `clawdget-linux-mipsel` | MIPS (MT7628 etc.), **fully static** — zero dependencies, runs on any mipsel Linux |
+| `clawdget-linux-mipsel-slim` | MIPS, ~550 KB — needs the firmware's libssl/libcrypto (typical OpenWrt with openssl) |
 
 ### Local build
 

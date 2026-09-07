@@ -88,7 +88,6 @@ static int choose_session(const config_t *cfg, char *out, size_t sz)
 		       cJSON_IsNumber(c) ? (int)c->valuedouble : 0,
 		       cJSON_IsString(u) ? u->valuestring : "");
 	}
-	cJSON_Delete(list);
 	fprintf(stderr, "select session [1-%d]: ", n);
 	fflush(stderr);
 	char *line = util_read_line(stdin);
@@ -105,6 +104,7 @@ static int choose_session(const config_t *cfg, char *out, size_t sz)
 	cJSON *m = cJSON_GetArrayItem(list, pick - 1);
 	cJSON *k = cJSON_GetObjectItem(m, "key");
 	snprintf(out, sz, "%s", cJSON_IsString(k) ? k->valuestring : "");
+	cJSON_Delete(list);
 	return 0;
 }
 

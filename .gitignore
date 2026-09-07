@@ -7,3 +7,6 @@ build-mips2/
 test/mock.log
 test/mock.pid
 test/tmp-skill-serve/
+test/tmp-skill-serve/
+deploy.sh
+deploy/

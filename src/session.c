@@ -38,7 +38,9 @@ char *session_new_key(void)
 	localtime_r(&t, &tm);
 	char buf[64];
 	strftime(buf, sizeof(buf), "s-%Y%m%d-%H%M%S", &tm);
-	return strdup(buf);
+	char out[80];
+	snprintf(out, sizeof(out), "%s-%04x", buf, (unsigned)(getpid() & 0xffff));
+	return strdup(out);
 }
 
 static int write_meta(session_t *s)
@@ -211,7 +213,8 @@ cJSON *session_list(const config_t *cfg)
 		cJSON_AddItemToArray(out, m);
 	}
 	closedir(d);
-	/* sort newest first by updated_at */
+	/* sort newest first by updated_at (swap child lists in place;
+	 * deleting + re-adding would use-after-free) */
 	int n = cJSON_GetArraySize(out);
 	for (int i = 0; i < n - 1; i++) {
 		for (int j = 0; j < n - 1 - i; j++) {
@@ -219,9 +222,11 @@ cJSON *session_list(const config_t *cfg)
 			cJSON *b = cJSON_GetArrayItem(out, j + 1);
 			const char *ua = cJSON_GetStringValue(cJSON_GetObjectItem(a, "updated_at"));
 			const char *ub = cJSON_GetStringValue(cJSON_GetObjectItem(b, "updated_at"));
-			if (ua && ub && strcmp(ua, ub) < 0)
-				cJSON_ReplaceItemInArray(out, j, cJSON_Duplicate(b, 1)),
-				cJSON_ReplaceItemInArray(out, j + 1, cJSON_Duplicate(a, 1));
+			if (ua && ub && strcmp(ua, ub) < 0) {
+				cJSON *tc = a->child;
+				a->child = b->child;
+				b->child = tc;
+			}
 		}
 	}
 	return out;

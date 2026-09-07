@@ -21,6 +21,10 @@ Run an OpenAI-compatible AI agent on hardware that was never supposed to run AI.
 
 ## That's it running on a 580MHz MT7628 router, right now
 
+![clawdget demo on MT7628](docs/demo.gif)
+
+Same session as plain text:
+
 ```text
 root@OpenWrt:~# clawdget -n "帮我检查一下路由器现在有没有异常"
 [tool] sysinfo

@@ -28,8 +28,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: install musl cross toolchain
         run: |
-          wget -q https://musl.cc/mipsel-linux-musl-cross.tgz
-          tar xzf mipsel-linux-musl-cross.tgz
+          for url in \
+            https://musl.cc/mipsel-linux-musl-cross.tgz \
+            https://more.musl.cc/x86_64-linux-musl/mipsel-linux-musl-cross.tgz ; do
+            echo "trying $url"
+            wget -q --timeout=60 --tries=2 -O toolchain.tgz "$url" && \
+              tar xzf toolchain.tgz && break
+          done
+          test -d mipsel-linux-musl-cross || { echo "all mirrors failed"; exit 1; }
           echo "$PWD/mipsel-linux-musl-cross/bin" >> $GITHUB_PATH
       - name: build static
         run: |

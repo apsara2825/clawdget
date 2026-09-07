@@ -76,6 +76,7 @@ implementation, developed and verified on real MT7628 / OpenWrt hardware.
 
 - **Agent loop** — LLM ↔ tools until the task is done (budget: 20 rounds by default)
 - **7 built-in tools** — `exec` `read_file` `write_file` `edit_file` `list_dir` `http_fetch` `sysinfo`
+- **Skills** — drop Markdown playbooks into `workspace/skills/<name>/SKILL.md`; the agent discovers and follows them
 - **Safety defaults** — `exec` asks y/n per command; file tools are jailed to a workspace; `-y` / `"auto": true` lifts restrictions at your own risk
 - **Streaming** — SSE deltas print as they arrive, with a `thinking...` indicator while waiting
 - **Sessions** — append-only JSONL per session (crash-safe `fsync`), `ls` / `resume` / `rm`
@@ -133,6 +134,26 @@ make mips CURL_INC=... CURL_LIB=... CURL_A=/path/libcurl.a MIPS_LIBS="-lssl -lcr
 Verified on MT7628 (mipsel, uClibc 0.9.33.2) with the
 [OpenWrt toolchain](https://openwrt.org/docs/developer-toolchain/start).
 
+## Skills
+
+Teach your agent new tricks with plain Markdown. Each skill is a playbook the
+agent discovers automatically and follows when a task matches:
+
+```sh
+clawdget skill add https://example.com/my-skill.md [name]  # install from URL
+clawdget skill ls                                          # list installed
+clawdget skill rm my-skill                                 # remove
+```
+
+A skill is just `{workspace}/skills/<name>/SKILL.md`. Its first description
+line (frontmatter `description:` or `# heading`) is injected into the system
+prompt as a catalog; when a task matches, the agent `read_file`s the full
+playbook and follows it. No execution engine, no sandbox — just instructions.
+
+```
+workspace/skills/router-check/SKILL.md
+```
+
 ## Tools
 
 | tool | description |
@@ -181,6 +202,8 @@ Ideas and PRs welcome.
 - 流式输出 + 思考指示器；工具调用默认 20 轮上限；历史滑窗 `max_history`
 - 7 个内置工具；文件工具限制在 workspace 内；`exec` 默认逐条 y/n 确认（`-y` 解锁）
 - JSONL 多会话持久化；REPL + 单次提问两种用法；首运行自动生成配置模板
+- **Skills 系统**：把 Markdown 操作手册放进 `workspace/skills/<名字>/SKILL.md`，
+  agent 自动发现并照做；支持 `clawdget skill add <url>` 从 URL 安装
 
 灵感来自 [PicoClaw](https://github.com/sipeed/picoclaw) 与
 [NanoBot](https://github.com/HKUDS/nanobot)，核心循环为独立 C 实现。

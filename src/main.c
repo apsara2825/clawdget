@@ -16,11 +16,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <libgen.h>
+#include <dirent.h>
+#include <unistd.h>
 #include "config.h"
 #include "agent.h"
 #include "session.h"
 #include "util.h"
 #include "http.h"
+#include "prompt.h"
 
 static void print_help(const char *prog)
 {
@@ -29,6 +32,7 @@ static void print_help(const char *prog)
 		"Usage:\n"
 		"  %s [options] [prompt ...]   one-shot prompt\n"
 		"  %s [options]                interactive REPL\n"
+		"  %s skill ls|add <url> [name]|rm <name>  manage skills\n"
 		"  %s ls                       list sessions\n"
 		"  %s rm <key>                 delete session\n\n"
 		"Options:\n"
@@ -38,7 +42,7 @@ static void print_help(const char *prog)
 		"  -y         auto mode: run tools without confirmation\n"
 		"  -h         this help\n\n"
 		"REPL commands: /new /ls /resume <key> /rm <key> /help /quit\n",
-		prog, prog, prog, prog);
+		prog, prog, prog, prog, prog);
 }
 
 static void print_sessions(const config_t *cfg)
@@ -92,6 +96,96 @@ int main(int argc, char **argv)
 			auto_mode = 1;
 		} else if (!strcmp(argv[i], "-h") || !strcmp(argv[i], "--help")) {
 			print_help(basename(argv[0]));
+			free(promptv);
+			return 0;
+		} else if (!strcmp(argv[i], "skill") && i + 1 < argc) {
+			const char *sub = argv[i + 1];
+			config_t cfg;
+			char serr[256];
+			int created;
+			if (config_load(&cfg, cfg_path, &created, serr, sizeof(serr)) != 0) {
+				fprintf(stderr, "error: %s\n", serr);
+				return 1;
+			}
+			char sdir[1024];
+			snprintf(sdir, sizeof(sdir), "%s/skills", cfg.workspace);
+			if (!strcmp(sub, "ls")) {
+				DIR *d = opendir(sdir);
+				if (!d) {
+					printf("(no skills; add one with: clawdget skill add <url>)\n");
+				} else {
+					struct dirent *e;
+					int n = 0;
+					while ((e = readdir(d))) {
+						if (e->d_name[0] == '.')
+							continue;
+						char desc[256];
+						prompt_skill_desc(sdir, e->d_name, desc, sizeof(desc));
+						printf("%-20s %s\n", e->d_name,
+						       desc[0] ? desc : "(no description)");
+						n++;
+					}
+					closedir(d);
+					if (n == 0)
+						printf("(no skills installed)\n");
+				}
+			} else if (!strcmp(sub, "add") && i + 2 < argc) {
+				const char *url = argv[i + 2];
+				char name[128];
+				if (i + 3 < argc) {
+					snprintf(name, sizeof(name), "%s", argv[i + 3]);
+				} else {
+					const char *b = strrchr(url, '/');
+					b = b ? b + 1 : url;
+					size_t bl = strlen(b);
+					if (bl > 3 && !strcmp(b + bl - 3, ".md"))
+						bl -= 3;
+					if (bl == 0 || bl >= sizeof(name)) {
+						fprintf(stderr, "error: cannot derive skill name from url (pass a name)\n");
+						return 1;
+					}
+					memcpy(name, b, bl);
+					name[bl] = 0;
+				}
+				char *body = NULL;
+				pc_http_result res;
+				int rc = http_get(url, NULL, 1 << 20, &body, &res);
+				if (rc == -1) {
+					fprintf(stderr, "error: %s\n", res.curl_err);
+					return 1;
+				}
+				if (rc == -2) {
+					fprintf(stderr, "error: HTTP %ld\n", res.http_code);
+					free(body);
+					return 1;
+				}
+				char dpath[1200];
+				snprintf(dpath, sizeof(dpath), "%s/%s", sdir, name);
+				util_mkdir_p(dpath);
+				char fpath[1400];
+				snprintf(fpath, sizeof(fpath), "%s/SKILL.md", dpath);
+				FILE *fp = fopen(fpath, "w");
+				if (!fp) {
+					fprintf(stderr, "error: cannot write %s\n", fpath);
+					return 1;
+				}
+				size_t bl2 = body ? strlen(body) : 0;
+				fwrite(body, 1, bl2, fp);
+				fclose(fp);
+				printf("installed skill '%s' (%zu bytes) -> %s\n", name, bl2, fpath);
+				free(body);
+			} else if (!strcmp(sub, "rm") && i + 2 < argc) {
+				char fpath[1400], dpath[1200];
+				snprintf(dpath, sizeof(dpath), "%s/%s", sdir, argv[i + 2]);
+				snprintf(fpath, sizeof(fpath), "%s/SKILL.md", dpath);
+				if (unlink(fpath) == 0 && rmdir(dpath) == 0)
+					printf("removed skill %s\n", argv[i + 2]);
+				else
+					printf("skill not found: %s\n", argv[i + 2]);
+			} else {
+				fprintf(stderr, "usage: clawdget skill ls | add <url> [name] | rm <name>\n");
+			}
+			config_free(&cfg);
 			free(promptv);
 			return 0;
 		} else if (!strcmp(argv[i], "ls") && i + 1 == argc) {

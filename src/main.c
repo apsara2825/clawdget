@@ -67,6 +67,47 @@ static void print_sessions(const config_t *cfg)
 	cJSON_Delete(list);
 }
 
+/* print numbered session list, read a choice, copy key into out.
+ * returns 0 on success, -1 on cancel/invalid. */
+static int choose_session(const config_t *cfg, char *out, size_t sz)
+{
+	cJSON *list = session_list(cfg);
+	int n = cJSON_GetArraySize(list);
+	if (n == 0) {
+		printf("(no sessions)\n");
+		cJSON_Delete(list);
+		return -1;
+	}
+	for (int i = 0; i < n; i++) {
+		cJSON *m = cJSON_GetArrayItem(list, i);
+		cJSON *k = cJSON_GetObjectItem(m, "key");
+		cJSON *c = cJSON_GetObjectItem(m, "count");
+		cJSON *u = cJSON_GetObjectItem(m, "updated_at");
+		printf("  %d) %-24s %4d msgs  %s\n", i + 1,
+		       cJSON_IsString(k) ? k->valuestring : "?",
+		       cJSON_IsNumber(c) ? (int)c->valuedouble : 0,
+		       cJSON_IsString(u) ? u->valuestring : "");
+	}
+	cJSON_Delete(list);
+	fprintf(stderr, "select session [1-%d]: ", n);
+	fflush(stderr);
+	char *line = util_read_line(stdin);
+	if (!line) {
+		fputc('\n', stderr);
+		return -1;
+	}
+	int pick = atoi(line);
+	free(line);
+	if (pick < 1 || pick > n) {
+		fprintf(stderr, "invalid choice\n");
+		return -1;
+	}
+	cJSON *m = cJSON_GetArrayItem(list, pick - 1);
+	cJSON *k = cJSON_GetObjectItem(m, "key");
+	snprintf(out, sz, "%s", cJSON_IsString(k) ? k->valuestring : "");
+	return 0;
+}
+
 /* run one prompt through the agent; exits on error with message */
 static void run_prompt(const config_t *cfg, session_t *sess, const char *prompt)
 {
@@ -82,6 +123,7 @@ int main(int argc, char **argv)
 	const char *sess_key = NULL;
 	int force_new = 0;
 	int auto_mode = 0;
+	int pick_mode = 0;
 	int nargs = 0;
 	const char **promptv = calloc((size_t)argc, sizeof(char *));
 
@@ -90,6 +132,12 @@ int main(int argc, char **argv)
 			cfg_path = argv[++i];
 		} else if (!strcmp(argv[i], "-s") && i + 1 < argc) {
 			sess_key = argv[++i];
+		} else if (!strcmp(argv[i], "-r") || !strcmp(argv[i], "--resume")) {
+			/* optional following key; interactive pick otherwise */
+			if (i + 1 < argc && argv[i + 1][0] != '-')
+				sess_key = argv[++i];
+			else
+				pick_mode = 1;
 		} else if (!strcmp(argv[i], "-n")) {
 			force_new = 1;
 		} else if (!strcmp(argv[i], "-y") || !strcmp(argv[i], "--auto")) {
@@ -244,6 +292,12 @@ int main(int argc, char **argv)
 	pc_http_ca_info = cfg.ca_info;
 
 	/* open session */
+	char picked[256];
+	if (pick_mode && !sess_key) {
+		if (choose_session(&cfg, picked, sizeof(picked)) != 0)
+			return 1;
+		sess_key = picked;
+	}
 	session_t sess;
 	if (force_new) {
 		char *nk = session_new_key();
@@ -295,12 +349,16 @@ int main(int argc, char **argv)
 			free(line);
 			continue;
 		}
-		if (line[0] == '/') {
+		if (line[0] == '/' &&
+		    (!strcmp(line, "/quit") || !strcmp(line, "/exit") ||
+		     !strcmp(line, "/help") || !strcmp(line, "/new") ||
+		     !strcmp(line, "/ls") || !strcmp(line, "/resume") ||
+		     !strncmp(line, "/resume ", 8) || !strncmp(line, "/rm ", 4))) {
 			if (!strcmp(line, "/quit") || !strcmp(line, "/exit")) {
 				free(line);
 				break;
 			} else if (!strcmp(line, "/help")) {
-				fprintf(stderr, "/new /ls /resume <key> /rm <key> /quit\n");
+				fprintf(stderr, "/new /ls /resume [key] /rm <key> /quit\n");
 			} else if (!strcmp(line, "/new")) {
 				session_close(&sess);
 				char *nk = session_new_key();
@@ -309,6 +367,16 @@ int main(int argc, char **argv)
 				fprintf(stderr, "[session %s]\n", sess.key);
 			} else if (!strcmp(line, "/ls")) {
 				print_sessions(&cfg);
+			} else if (!strcmp(line, "/resume")) {
+				char key[256];
+				if (choose_session(&cfg, key, sizeof(key)) == 0) {
+					session_t ns;
+					if (session_open(&ns, &cfg, key, NULL) == 0) {
+						session_close(&sess);
+						sess = ns;
+						fprintf(stderr, "[session %s]\n", sess.key);
+					}
+				}
 			} else if (!strncmp(line, "/resume ", 8)) {
 				const char *key = line + 8;
 				session_t ns;
@@ -321,12 +389,11 @@ int main(int argc, char **argv)
 				}
 			} else if (!strncmp(line, "/rm ", 4)) {
 				session_delete(&cfg, line + 4);
-			} else {
-				fprintf(stderr, "unknown command: %s\n", line);
 			}
 			free(line);
 			continue;
 		}
+		/* anything else - including paths like /etc/config - is a prompt */
 		run_prompt(&cfg, &sess, line);
 		free(line);
 	}

@@ -113,7 +113,13 @@ clawdget                     # interactive REPL (/new /ls /resume /quit)
 clawdget "what is my load?"  # one-shot question
 clawdget -y                  # auto mode: run tools without confirmation
 clawdget ls                  # list sessions
+clawdget -r                  # resume: pick a past session from a list
+clawdget -r <key>            # resume a specific session
 ```
+
+Paths like `/etc/config/network` typed in the REPL are sent to the agent as
+normal text — only real commands (`/new` `/ls` `/resume` `/rm` `/help` `/quit`)
+are interpreted.
 
 Environment overrides: `CLAWDGET_API_BASE` `CLAWDGET_API_KEY` `CLAWDGET_MODEL`
 `CLAWDGET_HOME` `CLAWDGET_CONFIG` `CLAWDGET_CAINFO`.

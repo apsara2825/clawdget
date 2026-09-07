@@ -11,3 +11,5 @@ test/tmp-skill-serve/
 deploy.sh
 deploy/
 scripts/
+build-arm/
+test/skillhome/

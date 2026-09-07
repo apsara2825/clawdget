@@ -13,3 +13,4 @@ deploy/
 scripts/
 build-arm/
 test/skillhome/
+.build-deps/

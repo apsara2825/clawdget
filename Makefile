@@ -2,18 +2,22 @@
 #   make debug      - local x86 build (for tests)
 #   make test       - build + run unit tests
 #   make e2e        - full loop against a local mock SSE server
-#   make mips       - cross-compile for MT7628 (mipsel uClibc)
+#   make mips       - cross-compile (generic, see below)
 #
-# MIPS libcurl headers/libs come from the buildroot build_dir; override via
-# local.mk or environment:
-#   CURL_INC - path to libcurl headers (cross)
-#   CURL_LIB - path to libcurl.so (cross)
+# Cross compiling: point CROSS at your own toolchain prefix and CURL_INC /
+# CURL_LIB at a libcurl built FOR THE TARGET:
+#   make mips CROSS=mipsel-openwrt-linux- \
+#        CURL_INC=/path/target-curl/include CURL_LIB=/path/target-curl/lib
+# Or use scripts/build-static.sh, which builds mbedtls + curl statically and
+# produces a single-file binary with zero runtime dependencies:
+#   CROSS=mipsel-linux-musl- ./scripts/build-static.sh
+# Personal overrides go in local.mk (git-ignored).
 
 -include local.mk
 
-CROSS    ?= /root/aiagent/mipsgcc/bin/mipsel-openwrt-linux-uclibc-
-CURL_INC ?= $(HOME)/aiagent/clawdget/build-mips/include
-CURL_LIB ?= $(HOME)/aiagent/clawdget/build-mips/lib
+CROSS    ?= mipsel-openwrt-linux-
+CURL_INC ?=
+CURL_LIB ?=
 
 SRC      := $(wildcard src/*.c) thirdparty/cjson.c
 CFLAGS   := -std=gnu99 -Wall -Wextra -Os -Isrc -Ithirdparty
@@ -47,6 +51,7 @@ e2e: debug
 # mips: dynamic link (-lcurl) by default; or set CURL_A=<libcurl.a path>
 # to link libcurl statically (remaining NEEDED libs must exist on device,
 # e.g. -lssl/-lcrypto from the firmware).
+ARCH_FLAGS ?= -mips32r2
 MIPS_LDFLAGS := $(if $(CURL_A),$(CURL_A),-lcurl) $(MIPS_LIBS)
 
 

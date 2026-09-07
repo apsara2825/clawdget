@@ -126,15 +126,40 @@ Environment overrides: `CLAWDGET_API_BASE` `CLAWDGET_API_KEY` `CLAWDGET_MODEL`
 
 ## Build
 
+### Prebuilt binaries
+
+Check the [Releases](https://github.com/apsara2825/clawdget/releases) page —
+pushing a `v*` tag triggers CI, which builds and attaches binaries
+(`linux-x86_64`, `linux-mipsel` fully static).
+
+### Local build
+
 ```sh
-# local x86 build + tests (needs libcurl-dev)
+# x86 build + tests (needs libcurl-dev)
 make debug && make test && make e2e
+```
 
-# cross-compile for MIPS/OpenWrt (needs cross gcc + curl headers/libs)
-make mips CURL_INC=/path/curl/include CURL_LIB=/path/curl/lib
+### Cross compiling to your platform
 
-# single-file static build (only firmware's libssl/libcrypto needed at runtime)
-make mips CURL_INC=... CURL_LIB=... CURL_A=/path/libcurl.a MIPS_LIBS="-lssl -lcrypto"
+Use **your own cross toolchain**. Two ways:
+
+**1. scripts/build-static.sh (recommended)** — downloads and statically builds
+mbedtls + curl for the target, links clawdget fully static. You only need a
+cross toolchain (e.g. [musl.cc](https://musl.cc) toolchains):
+
+```sh
+CROSS=mipsel-linux-musl- ./scripts/build-static.sh    # -> build-static/clawdget
+CROSS=arm-linux-musleabi- ./scripts/build-static.sh build-arm
+```
+
+**2. make with your target libcurl** — point CURL_INC/CURL_LIB at a libcurl
+built for the target:
+
+```sh
+make mips CROSS=mipsel-openwrt-linux- \
+     CURL_INC=/path/target-curl/include CURL_LIB=/path/target-curl/lib
+# if the target libcurl is a static archive:
+make mips CROSS=... CURL_INC=... CURL_A=/path/libcurl.a MIPS_LIBS="-lssl -lcrypto"
 ```
 
 Verified on MT7628 (mipsel, uClibc 0.9.33.2) with the

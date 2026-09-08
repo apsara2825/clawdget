@@ -2,16 +2,16 @@
 
 # 🐾 clawdget
 
-### **The AI agent that fits inside a router.**
+### **An ultra-efficient AI agent in pure C**
 
-Run an OpenAI-compatible AI agent on hardware that was never supposed to run AI.
+**550KB binary · <1MB RAM · instant boot · AI for every Linux device**
 
-![size](https://img.shields.io/badge/binary-550%20KB-blue)
+![size](https://img.shields.io/badge/binary-550%20KB~2MB-blue)
 ![ram](https://img.shields.io/badge/RAM-%3C1%20MB-success)
-![arch](https://img.shields.io/badge/arch-MIPS%20%7C%20ARM%20%7C%20x86-informational)
+![Arch-x86__64%20%7C%20ARM%20%7C%20MIPS%20%7C%20RISC--V-blue](https://img.shields.io/badge/Arch-x86__64%2C%20ARM%2C%20MIPS%2C%20RISC--V-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
-**Pure C · Tool calling · Streaming SSE · JSONL sessions · Zero runtime deps**
+**Pure C · Tool calling · Streaming SSE · Sessions · Skills · WeChat (optional)**
 
 English | [中文文档（新手教程）](README.zh-CN.md)
 
@@ -19,11 +19,38 @@ English | [中文文档（新手教程）](README.zh-CN.md)
 
 ---
 
-## That's it running on a 580MHz MT7628 router, right now
+> **clawdget** is an independent open-source project written from scratch in
+> **C99** — not a fork of PicoClaw, NanoBot, or anything else, but a fresh
+> implementation inspired by them.
+>
+> 🦴 **clawdget** has exactly one goal: **cram an AI agent into every
+> resource-constrained Linux device** — routers, dev boards, NAS boxes,
+> set-top sticks, aging mini PCs … with just 1MB of free memory you get an AI
+> assistant that runs commands, reads and writes files, and fetches web pages
+> on its own.
+
+## Why clawdget?
+
+Most AI agent frameworks assume a PC: a Python runtime plus a pile of
+dependencies, tens of MB before you start. clawdget goes the other way —
+one C binary you drop into `/usr/bin`:
+
+| | clawdget | typical Python agent |
+|---|---|---|
+| binary size | 550 KB (slim) – 2 MB (fully static) | 50 MB+ runtime |
+| RAM in use | < 1 MB | 30 MB+ |
+| startup | milliseconds | seconds |
+| dependencies | none / your system's libcurl | Python + dozens of packages |
+| backends | any OpenAI-compatible endpoint | vendor SDKs |
+
+Works with **DeepSeek, Qwen, Moonshot, OpenAI, Ollama, vLLM and everything
+OpenAI-compatible**.
+
+## See it running right now
+
+Captured live on a 580MHz MT7628 router with 59MB of RAM:
 
 ![clawdget demo on MT7628](docs/demo.gif)
-
-Same session as plain text:
 
 ```text
 root@OpenWrt:~# clawdget -n "帮我检查一下路由器现在有没有异常"
@@ -43,122 +70,162 @@ root@OpenWrt:~# clawdget -n "帮我检查一下路由器现在有没有异常"
 **总结：路由器运行稳定，各项服务正常，没有发现异常。** 👍
 ```
 
-*Real output, captured on an MT7628 (MIPS 24KEc, 580MHz, 59MB RAM) running OpenWrt.*
-The agent decided on its own which commands to run, executed them on the router,
-and wrote the report. No shell scripts involved.
-
-## Why clawdget
-
-Most AI agent runtimes assume a PC. clawdget targets the other end of the
-spectrum — a single C binary you drop into `/usr/bin` of a router:
-
-| | clawdget | typical Python agent |
-|---|---|---|
-| binary size | ~550 KB (slim) – 2 MB (fully static) | 50 MB+ runtime |
-| RAM in use | < 1 MB | 30 MB+ |
-| startup | instant | seconds |
-| dependencies | your firmware's own libssl/libcrypto | Python + dozens of packages |
-
-Works with **any OpenAI-compatible endpoint**: DeepSeek, Qwen, Moonshot, OpenAI,
-Ollama, vLLM, or any relay. Inspired by
-[PicoClaw](https://github.com/sipeed/picoclaw) and
-[NanoBot](https://github.com/HKUDS/nanobot); the core loop is an independent C
-implementation, developed and verified on real MT7628 / OpenWrt hardware.
+*Real output.* The agent decided on its own which commands to run, executed
+them, and wrote the report — no preset scripts. The same experience works on
+any Linux device: x86 mini PCs, ARM boards, NAS, set-top boxes …
 
 ## Features
 
-- **Agent loop** — LLM ↔ tools until the task is done (budget: 20 rounds by default)
+- **Agent loop** — LLM ↔ tools cooperate until the task is done (budget: 20 rounds by default)
 - **7 built-in tools** — `exec` `read_file` `write_file` `edit_file` `list_dir` `http_fetch` `sysinfo`
 - **Skills** — drop Markdown playbooks into `workspace/skills/<name>/SKILL.md`; the agent discovers and follows them
+- **WeChat channel (optional)** — chat with the agent over a personal WeChat account via Tencent's official iLink API (`make WEIXIN=1`)
 - **Safety defaults** — `exec` asks y/n per command; file tools are jailed to a workspace; `-y` / `"auto": true` lifts restrictions at your own risk
 - **Streaming** — SSE deltas print as they arrive, with a `thinking...` indicator while waiting
 - **Sessions** — append-only JSONL per session (crash-safe `fsync`), `ls` / `resume` / `rm`
 - **Context control** — history sliding window (`max_history`)
 - **Robust I/O** — tool output UTF-8 sanitized, capped, and timeout-killed
-- **CA auto-detection** — uses `/etc/ssl/certs` (bundle or hashed dir), or set `ca_info`
 
 ## Quick start
 
-First run writes a config template to `~/.clawdget/config.json`
-(or `/data/.clawdget/config.json` on devices with a `/data` partition) —
-fill in your API endpoint and key:
+### 1. Get the binary
+
+Grab one from [Releases](https://github.com/apsara2825/clawdget/releases)
+(`clawdget-linux-mipsel-slim` fits MIPS routers) and copy it over:
+
+```sh
+scp clawdget-linux-mipsel-slim root@192.168.x.1:/data/clawdget
+ssh root@192.168.x.1 "chmod +x /data/clawdget"
+```
+
+### 2. Configure
+
+Run `clawdget` once — it writes a config template
+(`~/.clawdget/config.json`, or `/data/.clawdget/config.json` on devices with
+a `/data` partition) — then fill in your API endpoint and key. Any
+OpenAI-compatible platform works:
 
 ```json
 {
   "model_list": [
     {
       "api_base": "https://api.deepseek.com/v1",
-      "api_key": "sk-xxx",
-      "model": "deepseek-chat",
-      "temperature": 0.7,
-      "max_tokens": 4096
+      "api_key": "sk-your-key",
+      "model": "deepseek-chat"
     }
-  ],
-  "agents": { "defaults": { "max_tool_iterations": 20, "max_history": 60 } },
-  "tools": { "auto": false, "exec_confirm": true, "show_tool_calls": false, "allow_paths": [] }
+  ]
 }
 ```
 
-Then:
+### 3. Chat
 
 ```sh
 clawdget                     # interactive REPL (/new /ls /resume /quit)
-clawdget "what is my load?"  # one-shot question
+clawdget "any question"      # one-shot question
 clawdget -y                  # auto mode: run tools without confirmation
-clawdget ls                  # list sessions
-clawdget -r                  # resume: pick a past session from a list
+clawdget -r                  # resume a past session (shows last messages)
 ```
 
 Paths like `/etc/config/network` typed in the REPL are sent to the agent as
 normal text — only real commands (`/new` `/ls` `/resume` `/rm` `/help` `/quit`)
 are interpreted.
 
-## WeChat channel (optional)
+## Usage
 
-Built with `make WEIXIN=1`: `clawdget auth weixin` (QR login) then
-`clawdget gateway` (daemon) lets the agent chat over a personal WeChat
-account via Tencent's official iLink API. Text messages only; per-user
-sessions and an allowlist are supported. See README.zh-CN.md for details.
+| command | what it does |
+|---|---|
+| `clawdget` | interactive REPL |
+| `clawdget "question"` | one-shot question |
+| `clawdget -y` | auto mode: tools run without confirmation |
+| `clawdget -r` | resume a session (shows the last 3 messages) |
+| `clawdget ls` / `rm <key>` | session management |
+
+**Safety**: by default every shell command needs y/n and file tools stay
+inside the workspace. `-y` or `"auto": true` removes the guardrails — your
+call.
+
+## Config reference
+
+```jsonc
+{
+  "model_list": [                    // models; the first one is used
+    {
+      "api_base": "https://api.deepseek.com/v1",  // OpenAI-compatible endpoint
+      "api_key": "sk-xxx",
+      "model": "deepseek-chat",
+      "temperature": 0.7,            // optional
+      "max_tokens": 4096             // optional
+    }
+  ],
+  "agents": {
+    "defaults": {
+      "max_tool_iterations": 20,     // tool rounds per task
+      "max_history": 60              // history sliding window (token control)
+    }
+  },
+  "tools": {
+    "auto": false,                   // true = no confirmations
+    "exec_confirm": true,            // y/n before exec
+    "show_tool_calls": false,        // print [tool] lines
+    "allow_paths": []                // extra paths file tools may touch
+  }
+}
+```
+
+Env overrides: `CLAWDGET_API_BASE` `CLAWDGET_API_KEY` `CLAWDGET_MODEL`
+`CLAWDGET_HOME` `CLAWDGET_CONFIG` `CLAWDGET_CAINFO` `CLAWDGET_WX_TOKEN`.
 
 ## Skills
 
-Teach your agent new tricks with plain Markdown. Each skill is a playbook the
-agent discovers automatically and follows when a task matches:
+Teach your agent new tricks with plain Markdown. Each skill is a playbook at
+`{workspace}/skills/<name>/SKILL.md`; its description is injected into the
+system prompt, and when a task matches the agent `read_file`s the playbook
+and follows it — no execution engine, no sandbox, just instructions.
 
-```sh
-clawdget skill add https://example.com/my-skill.md [name]  # install from URL
-clawdget skill ls                                          # list installed
-clawdget skill rm my-skill                                 # remove
+```markdown
+---
+description: Health-check the router and write a report
+---
+# Router check
+
+1. Run the sysinfo tool
+2. Run `uptime` and `free` via exec
+3. Write the summary to workspace/report.md with write_file
+4. Tell the user where the report is
 ```
 
-A skill is just `{workspace}/skills/<name>/SKILL.md`. Its description line
-(frontmatter `description:` or `# heading`) is injected into the system prompt
-as a catalog; when a task matches, the agent `read_file`s the full playbook
-and follows it. No execution engine, no sandbox — just instructions.
+Install from a URL: `clawdget skill add https://example.com/skill.md`
+
+## WeChat channel (optional build)
+
+Chat with the agent over a personal WeChat account through Tencent's official
+iLink API (not a reverse-engineered protocol):
+
+```sh
+# enable at compile time (without WEIXIN=1 the binary contains none of it)
+make mips WEIXIN=1 CROSS=<toolchain-prefix> ...
+
+clawdget auth weixin    # QR login (renders right in the terminal)
+clawdget gateway        # daemon: the agent answers WeChat messages
+```
+
+Per-user sessions (`wx-*`), an allowlist, and persisted state are included.
+Note: tokens bind to one device, and high-frequency auto-replies can trip
+WeChat's anti-spam — use the allowlist.
 
 ## Build
 
-### Prebuilt binaries
-
-The [Releases](https://github.com/apsara2825/clawdget/releases) page carries a
-slim MIPS build (`clawdget-linux-mipsel-slim`, ~550 KB — dynamically linked
-against the firmware's libssl/libcrypto, typical OpenWrt). Other platforms:
-build with `build-static.sh` (see below).
-
-### Local build
+### Local build & development
 
 ```sh
-# x86 build + tests (needs libcurl-dev)
-make debug && make test && make e2e
+make debug && make test && make e2e   # x86 build + unit tests + mock e2e
 ```
 
-### Cross compiling to your platform
-
-Use **your own cross toolchain**. Two ways:
+### Cross compiling
 
 **1. build-static.sh (recommended)** — downloads and statically builds
-mbedtls + curl for the target, links clawdget fully static. You only need a
-cross toolchain (e.g. [musl.cc](https://musl.cc) toolchains):
+mbedtls + curl for the target and links a fully static clawdget. You only
+need a cross toolchain (e.g. [musl.cc](https://musl.cc)):
 
 ```sh
 CROSS=mipsel-linux-musl- ./build-static.sh    # -> build-static/clawdget
@@ -191,7 +258,7 @@ Verified on MT7628 (mipsel, uClibc 0.9.33.2) with the
 
 ```
 src/
-├── main.c       CLI / REPL
+├── main.c       CLI / REPL / subcommands
 ├── config.c     JSON config + env overrides
 ├── provider.c   OpenAI-compatible client (SSE streaming, tool-call delta assembly)
 ├── agent.c      tool-calling loop
@@ -204,15 +271,18 @@ src/
 ├── spinner.c    "thinking..." indicator
 ├── http.c       libcurl wrapper (SSE stream / buffered POST / GET)
 └── util.c       helpers
-thirdparty/cjson.c  minimal cJSON-compatible JSON library (self-contained)
+thirdparty/cjson.c       minimal cJSON-compatible JSON library
+thirdparty/qrcodegen.c   QR code generation (WeChat channel)
+src/weixin/              WeChat channel (compiled with WEIXIN=1)
 ```
 
 ## Roadmap
 
-- [ ] Hardware tools (GPIO / i2c) for embedded tinkering
-- [ ] Cron / scheduled tasks
+- [ ] More prebuilt platforms (aarch64, riscv)
+- [ ] Hardware tools (GPIO / i2c)
+- [ ] Scheduled tasks
 - [ ] Summarization-based context compression
-- [ ] More release platforms (arm, aarch64)
+- [ ] More channels
 
 Ideas and PRs welcome.
 

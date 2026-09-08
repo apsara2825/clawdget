@@ -1,15 +1,17 @@
 <div align="center">
 
-# 🐾 clawdget 中文文档
+# 🐾 clawdget
 
-### **能塞进路由器里的 AI Agent**
+### **C 语言超轻量级 AI Agent**
 
-让一台从没想过能跑 AI 的设备，跑上 AI Agent。
+**550KB 二进制 · <1MB 内存 · 毫秒启动 · 让任何 Linux 设备拥有 AI**
 
-![size](https://img.shields.io/badge/binary-550%20KB-blue)
+![size](https://img.shields.io/badge/binary-550%20KB~2MB-blue)
 ![ram](https://img.shields.io/badge/RAM-%3C1%20MB-success)
-![arch](https://img.shields.io/badge/arch-MIPS%20%7C%20ARM%20%7C%20x86-informational)
+![Arch-x86__64%20%7C%20ARM%20%7C%20MIPS%20%7C%20RISC--V-blue](https://img.shields.io/badge/Arch-x86__64%2C%20ARM%2C%20MIPS%2C%20RISC--V-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
+
+**纯 C · 工具调用 · 流式输出 · 多会话 · Skills 技能系统 · 微信接入（可选）**
 
 [English](README.md) | 中文（新手教程）
 
@@ -17,50 +19,80 @@
 
 ---
 
-## 这是个啥？
+> **clawdget** 是一个独立开源项目，使用 **C99** 从零编写——不是 PicoClaw、NanoBot 或任何项目的分支，而是受它们启发的全新实现。
+>
+> 🦴 **clawdget** 的目标只有一个：**把 AI Agent 塞进一切资源受限的 Linux 设备**——路由器、开发板、NAS、机顶盒、老旧小主机……只要 1MB 空闲内存，就能拥有一个会自己执行命令、读写文件、查网页的 AI 助手。
 
-一句话：**给老路由器、开发板装一个 AI 助手**。
+## 为什么是 clawdget？
 
-你平时用的 AI（ChatGPT、DeepSeek 这些）跑在云上，但它们没法直接操作你的设备。
-clawdget 装在你的路由器上之后，它就是一个"住在设备里的 AI"——你说"帮我看看路由器
-有没有问题"，它会**自己决定**执行哪些命令（看内存、看日志、查网络……），把结果
-看完再总结给你。
+绝大多数 AI Agent 框架默认跑在 PC 上：Python 运行时 + 一堆依赖，几十 MB 起步。
+clawdget 反其道而行之——一个 C 语言二进制，扔进 `/usr/bin` 就能用：
 
-整个过程只需要一个几百 KB 的小程序，内存占用不到 1MB，十年前的路由器都能跑。
+| | clawdget | 典型 Python Agent |
+|---|---|---|
+| 二进制体积 | 550KB（精简）~ 2MB（全静态） | 50MB+ 运行时 |
+| 运行内存 | <1MB | 30MB+ |
+| 启动速度 | 毫秒级 | 秒级 |
+| 依赖 | 零 / 系统自带 libcurl | Python + 几十个包 |
+| 接入方式 | 任意 OpenAI 兼容接口 | 各家 SDK |
+
+支持 **DeepSeek、Qwen、Moonshot、OpenAI、Ollama、vLLM 及一切 OpenAI 兼容接口**。
+
+## 实测演示
+
+在 580MHz 的 MT7628 路由器（59MB 内存）上实录：
 
 ![演示动图](docs/demo.gif)
 
-## 五分钟上手（不用编译，下载就能用）
+```text
+root@OpenWrt:~# clawdget -n "帮我检查一下路由器现在有没有异常"
+[tool] sysinfo
+[tool] exec  uptime
+[tool] exec  free
+[tool] exec  df -h
+[tool] exec  dmesg | tail
+[tool] exec  netstat -tlnp
+[tool] exec  ps w
 
-### 第 1 步：下载程序
-
-到 [Releases](https://github.com/apsara2825/clawdget/releases) 页面下载
-对应你设备的文件：
-
-| 文件 | 适合什么设备 | 说明 |
-|---|---|---|
-| `clawdget-linux-mipsel-slim` | MT7628/MT7688 等 MIPS 路由器 | 精简版 ~550KB，要求固件自带 openssl（多数 OpenWrt 都有） |
-| x86 / ARM 设备 | 电脑、开发板等 | 请按下方「自己编译」自行构建 |
-
-传到设备上并赋予执行权限（在你的电脑上执行，`192.168.x.1` 换成路由器 IP）：
-
-```sh
-scp clawdget-linux-mipsel root@192.168.x.1:/data/clawdget
-ssh root@192.168.x.1 "chmod +x /data/clawdget; ln -sf /data/clawdget /usr/bin/clawdget"
+检查完毕，以下是路由器的整体健康报告：
+  运行时间   ~76 小时（稳定运行中）
+  系统负载   0.07 / 0.05 / 0.05（非常低）
+  内存       58MB 总量，可用 33MB（46%）
+  ...
+**总结：路由器运行稳定，各项服务正常，没有发现异常。** 👍
 ```
 
-> 💡 没有 `/data` 分区的设备，把程序放 `/usr/bin/` 目录也可以。
+AI 自己决定执行哪些命令、自己总结——没有预设脚本。类似的体验可以跑在任何
+Linux 设备上：x86 小主机、ARM 开发板、NAS、机顶盒……
+
+## 核心特性
+
+- **Agent 工具循环** — LLM ↔ 工具自动协作完成任务（默认 20 轮上限，可配置）
+- **7 个内置工具** — `exec` `read_file` `write_file` `edit_file` `list_dir` `http_fetch` `sysinfo`
+- **Skills 技能系统** — 往 `workspace/skills/` 里扔一份 Markdown 手册，AI 自动发现并照做
+- **微信接入（可选编译）** — 基于腾讯官方 iLink API，个人微信号变成 AI 助手
+- **安全默认** — exec 逐条 y/n 确认；文件工具锁定 workspace；`-y` 解锁全自动
+- **流式输出** — SSE 边收边显示，等待时有 `thinking...` 动态指示
+- **多会话** — JSONL 持久化（掉电安全），`ls`/`resume`/`rm` 管理
+- **上下文滑窗** — `max_history` 控制历史长度，费用可控
+- **健壮 I/O** — 工具输出 UTF-8 清洗、截断、超时击杀
+
+## 五分钟上手
+
+### 第 1 步：拿到程序
+
+到 [Releases](https://github.com/apsara2825/clawdget/releases) 下载对应平台的文件
+（`clawdget-linux-mipsel-slim` 适合 MIPS 路由器），传到设备：
+
+```sh
+scp clawdget-linux-mipsel-slim root@192.168.x.1:/data/clawdget
+ssh root@192.168.x.1 "chmod +x /data/clawdget"
+```
 
 ### 第 2 步：填配置
 
-在路由器上随便跑一次 `clawdget`，它会自动生成配置模板，然后编辑它：
-
-```sh
-vi /data/.clawdget/config.json    # 没有 vi 就用 cat > 重写整个文件
-```
-
-需要修改的只有三行（**去哪里拿 key？**：DeepSeek、Moonshot、阿里百炼、
-火山方舟等任何 OpenAI 兼容的平台注册后都能拿到，几块钱能用很久）：
+在设备上运行一次 `clawdget`，自动生成配置模板，填入 API 地址和 key
+（DeepSeek、Moonshot、阿里百炼、火山方舟等任意 OpenAI 兼容平台均可）：
 
 ```json
 {
@@ -77,63 +109,29 @@ vi /data/.clawdget/config.json    # 没有 vi 就用 cat > 重写整个文件
 ### 第 3 步：开聊
 
 ```sh
-clawdget                        # 进入对话模式
-clawdget -n "路由器内存多少"      # 单次提问后退出
+clawdget                        # 对话模式（/new /ls /resume /quit）
+clawdget "任意问题"              # 单次提问
+clawdget -y                     # 自动模式：AI 执行命令不再询问
+clawdget -r                     # 恢复旧对话：列表选序号继续聊
 ```
 
-完事！下面是更详细的功能和进阶玩法。
+详细用法、配置逐项说明、Skills 教程、常见问题见本页下方各章节。
 
 ## 日常使用
 
 | 命令 | 作用 |
 |---|---|
-| `clawdget` | 进入对话模式，连续聊天 |
-| `clawdget "任意问题"` | 问一句就退出 |
-| `clawdget -y` | 自动模式：AI 执行命令不再需要你按 y 确认 |
-| `clawdget -r` | 恢复旧对话：列出历史会话，输序号继续聊 |
-| `clawdget ls` | 列出所有会话 |
-| `clawdget rm 会话名` | 删除某个会话 |
+| `clawdget` | 对话模式，连续聊天 |
+| `clawdget "任意问题"` | 单次提问 |
+| `clawdget -y` | 自动模式：AI 执行命令不再 y/n 确认 |
+| `clawdget -r` | 恢复旧对话（显示最近 3 条消息帮助回忆） |
+| `clawdget ls` / `rm 会话名` | 会话管理 |
 
-**对话模式里的快捷命令**：`/new` 新会话 · `/ls` 列会话 · `/resume` 恢复会话 ·
-`/quit` 退出。其他以 `/` 开头的内容（比如文件路径 `/etc/config/network`）
-都会当作正常对话发给 AI。
+**对话模式快捷命令**：`/new` · `/ls` · `/resume` · `/quit`。其他以 `/` 开头的
+内容（比如路径 `/etc/config/network`）都当作正常对话发给 AI。
 
-**安全说明**：默认情况下 AI 每次要执行命令都会先打印出来问你 y/n；它写文件
-只能在 workspace 目录里。确认自己环境安全后可以用 `-y` 或配置里 `"auto": true`
-放开限制。
-
-## 自己编译（进阶）
-
-### 方式一：build-static.sh 脚本（推荐，最省心）
-
-只要有一个交叉编译工具链，脚本会自动下载并静态编译 mbedtls 和 curl，
-最后产出一个**不依赖任何系统库**的单文件程序：
-
-```sh
-# 1. 下载一个交叉工具链（以 musl.cc 为例，也可以用 OpenWrt SDK 的工具链）
-wget https://musl.cc/mipsel-linux-musl-cross.tgz
-tar xzf mipsel-linux-musl-cross.tgz
-
-# 2. 一键构建（CROSS 填工具链前缀）
-CROSS=$PWD/mipsel-linux-musl-cross/bin/mipsel-linux-musl- \
-    ./build-static.sh
-
-# 3. 产物在 build-static/clawdget，全静态，拷到设备就能跑
-```
-
-换个平台就换个工具链前缀，比如 ARM：`CROSS=arm-linux-musleabi-`。
-
-### 方式二：make + 目标平台的 libcurl
-
-如果你的工具链环境里已经有编译好的目标平台 libcurl：
-
-```sh
-make mips CROSS=mipsel-openwrt-linux- \
-     CURL_INC=/目标libcurl的include路径 \
-     CURL_LIB=/目标libcurl的lib路径
-```
-
-个人的路径偏好可以写进 `local.mk`（已被 git 忽略），不用每次敲。
+**安全说明**：默认 AI 执行命令前逐条 y/n 确认、写文件限制在 workspace 内。
+确认环境安全后可用 `-y` 或 `"auto": true` 放开。
 
 ## 配置文件详解
 
@@ -151,61 +149,25 @@ make mips CROSS=mipsel-openwrt-linux- \
   "agents": {
     "defaults": {
       "max_tool_iterations": 20,     // AI 单次任务最多执行几轮工具
-      "max_history": 60              // 对话历史滑窗条数（控制 token 消耗）
+      "max_history": 60              // 历史滑窗条数（控制 token 消耗）
     }
   },
   "tools": {
     "auto": false,                   // true = AI 执行命令不再询问
     "exec_confirm": true,            // exec 前是否 y/n 确认
-    "show_tool_calls": false,        // 是否在终端显示 [tool] 执行行
-    "allow_paths": []                // 文件工具允许访问 workspace 之外的路径
+    "show_tool_calls": false,        // 是否显示 [tool] 执行行
+    "allow_paths": []                // 文件工具允许访问的额外路径
   }
 }
 ```
 
-也可以用环境变量临时覆盖：`CLAWDGET_API_BASE`、`CLAWDGET_API_KEY`、
-`CLAWDGET_MODEL`、`CLAWDGET_HOME`、`CLAWDGET_CONFIG`。
-
-## 微信渠道（可选编译）
-
-让 AI 通过你的个人微信号收发消息（基于腾讯官方 iLink API）：
-
-```sh
-# 1. 编译时启用微信支持（不加 WEIXIN=1 则完全不含此功能）
-make mips WEIXIN=1 CROSS=你的工具链前缀 CURL_INC=... CURL_LIB=... CURL_A=... MIPS_LIBS="-lssl -lcrypto"
-
-# 2. 扫码登录（终端会显示二维码，用微信扫一下）
-clawdget auth weixin
-
-# 3. 启动常驻网关（AI 开始接收并回复微信消息）
-clawdget gateway
-```
-
-配置文件里可以加白名单（只响应指定用户）：
-
-```json
-"channels": {
-  "weixin": {
-    "token": "也可以把 auth 拿到的 token 填这里",
-    "allow_from": ["微信用户ID"]
-  }
-}
-```
-
-注意事项：
-- token 与设备绑定，在别处扫码会把当前会话踢下线
-- 每个微信用户对应一个独立会话（`wx-xxx`），历史互相隔离
-- 目前支持文本消息；图片/语音仅显示占位符
-- ⚠️ 高频自动回复可能触发微信风控，请合理使用
+环境变量覆盖：`CLAWDGET_API_BASE`、`CLAWDGET_API_KEY`、`CLAWDGET_MODEL`、
+`CLAWDGET_HOME`、`CLAWDGET_CONFIG`、`CLAWDGET_CAINFO`、`CLAWDGET_WX_TOKEN`。
 
 ## Skills：教 AI 新技能（不用写代码）
 
-一个 skill 就是一份 Markdown 操作手册，放进
-`{workspace}/skills/名字/SKILL.md` 即可。AI 每次启动都会看到技能清单，
-遇到匹配的任务会自己去读手册并照做。
-
-举例 —— 教它每天体检路由器：创建
-`/data/.clawdget/workspace/skills/check/SKILL.md`：
+一个 skill 就是一份 Markdown 操作手册，放进 `{workspace}/skills/名字/SKILL.md`
+即可。AI 每次启动都会看到技能清单，遇到匹配的任务会自己读手册并照做。
 
 ```markdown
 ---
@@ -220,41 +182,94 @@ description: 对路由器做健康检查并生成报告
 4. 告诉用户报告位置
 ```
 
-然后对它说"做个体检"就行了。也可以从网上安装别人写好的：
+也可以安装别人写好的：`clawdget skill add https://example.com/skill.md`
+
+## 微信渠道（可选编译）
+
+让 AI 通过个人微信号收发消息（基于腾讯官方 iLink API，非逆向协议）：
 
 ```sh
-clawdget skill add https://example.com/some-skill.md
+# 编译时启用（不加 WEIXIN=1 则二进制完全不含此功能）
+make mips WEIXIN=1 CROSS=工具链前缀 ...
+
+clawdget auth weixin    # 扫码登录（终端直接显示二维码）
+clawdget gateway        # 常驻网关：AI 开始接收并回复微信消息
 ```
 
-## 常见问题
+- 每个微信用户对应独立会话（`wx-xxx`），支持 `allow_from` 白名单
+- token 与设备绑定，别处扫码会踢掉当前会话
+- ⚠️ 高频自动回复可能触发微信风控，请合理使用
 
-**Q：HTTPS 报证书错误？**
-设备上缺少 CA 证书目录。OpenWrt 可装 `ca-certificates`（`opkg install
-ca-certificates`），或确认 `/etc/ssl/certs/` 目录存在。
+## 自己编译
 
-**Q：多大的设备能跑？**
-二进制 550KB，运行内存 <1MB。实测 MT7628（580MHz、59MB 内存）流畅运行。
-理论上任何能跑 Linux 且有 1MB 空闲内存的设备都行。
+### 方式一：build-static.sh（推荐）
 
-**Q：会不会把路由器搞坏？**
-默认模式下 AI 执行每条命令都要你确认，写文件限制在 workspace 目录。
-只要不开 `-y` 自动模式，风险可控。
-
-**Q：对话记录存在哪？会不会写坏 flash？**
-`{home}/sessions/` 下的 JSONL 文件。放在 /data 等持久分区会写 flash，
-高频使用建议把 `CLAWDGET_HOME` 指到内存盘（如 /tmp），代价是重启丢失。
-
-**Q：支持哪些模型？**
-任何 OpenAI 兼容接口：DeepSeek、Qwen、Moonshot、OpenAI、Ollama、vLLM、
-各类中转站均可。
-
-## 参与贡献
-
-欢迎提 issue 和 PR。开发调试：
+只需一个交叉工具链，脚本自动下载并静态编译 mbedtls + curl，产出**零依赖单文件**：
 
 ```sh
-make debug && make test && make e2e   # 本机构建 + 单测 + mock 全链路
+# 下载工具链（以 musl.cc 为例）
+wget https://musl.cc/mipsel-linux-musl-cross.tgz && tar xzf mipsel-linux-musl-cross.tgz
+
+# 一键构建
+CROSS=$PWD/mipsel-linux-musl-cross/bin/mipsel-linux-musl- ./build-static.sh
+# 产物：build-static/clawdget（换平台就换工具链前缀，如 arm-linux-musleabi-）
 ```
+
+### 方式二：make + 目标平台 libcurl
+
+```sh
+make mips CROSS=mipsel-openwrt-linux- \
+     CURL_INC=/目标libcurl的include路径 CURL_LIB=/目标libcurl的lib路径
+```
+
+个人的路径偏好写进 `local.mk`（已被 git 忽略）。
+
+### 本机开发调试
+
+```sh
+make debug && make test && make e2e   # x86 构建 + 单测 + mock 全链路
+```
+
+## 工具一览
+
+| 工具 | 功能 |
+|---|---|
+| `exec` | 执行 shell 命令（超时击杀、输出截断） |
+| `read_file` / `write_file` / `edit_file` / `list_dir` | 文件操作（锁定 workspace） |
+| `http_fetch` | 抓取网页/API 内容 |
+| `sysinfo` | 主机名、负载、内存、磁盘、网卡状态 |
+
+## 架构
+
+```
+src/
+├── main.c       CLI / REPL / 子命令
+├── config.c     JSON 配置 + 环境变量覆盖
+├── provider.c   OpenAI 兼容客户端（SSE 流式、工具调用增量拼装）
+├── agent.c      工具循环
+├── tools.c      工具注册表 + JSON Schema
+├── t_shell.c    exec 工具
+├── t_fs.c       文件工具
+├── t_httpfetch.c  http_fetch + sysinfo
+├── session.c    JSONL 多会话存储
+├── prompt.c     system prompt
+├── spinner.c    thinking 指示器
+├── http.c       libcurl 封装（SSE 流式 / 缓冲 POST / GET）
+└── util.c       工具函数
+thirdparty/cjson.c       cJSON 兼容最小实现
+thirdparty/qrcodegen.c   二维码生成（微信渠道用）
+src/weixin/              微信渠道（WEIXIN=1 时编译）
+```
+
+## 路线图
+
+- [ ] 更多平台的预编译产物（aarch64、riscv）
+- [ ] 硬件工具（GPIO / i2c）
+- [ ] 定时任务
+- [ ] 基于总结的上下文压缩
+- [ ] 更多渠道接入
+
+欢迎提 issue 和 PR。
 
 ## 协议
 

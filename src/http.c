@@ -4,10 +4,27 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include <curl/curl.h>
 #include "http.h"
 
 const char *pc_http_ca_info = NULL;
+
+/* shared CA auto-detection: configured value, else well-known locations.
+ * returns CAINFO file path / CAPATH dir string, or NULL if nothing found. */
+const char *pc_http_ca_default(char *buf, size_t bufsz)
+{
+	if (pc_http_ca_info && *pc_http_ca_info)
+		return pc_http_ca_info;
+	struct stat st;
+	if (stat("/etc/ssl/certs/ca-certificates.crt", &st) == 0)
+		return "/etc/ssl/certs/ca-certificates.crt";
+	if (stat("/etc/ssl/certs", &st) == 0 && S_ISDIR(st.st_mode))
+		return "/etc/ssl/certs";
+	if (stat("/etc/pki/tls/certs", &st) == 0)
+		return "/etc/pki/tls/certs";
+	return NULL;
+}
 
 #define SSE_IDLE_TIMEOUT 300L /* seconds without data before abort */
 
@@ -153,13 +170,16 @@ static CURLcode common_setup(CURL *h, const char *url, const char *auth)
 		if (rc) return rc;
 	} else {
 		/* embedded defaults: CA bundle file, then hashed cert dir */
-		if (access("/etc/ssl/certs/ca-certificates.crt", R_OK) == 0) {
-			rc = curl_easy_setopt(h, CURLOPT_CAINFO,
-					      "/etc/ssl/certs/ca-certificates.crt");
-		} else if (access("/etc/ssl/certs", R_OK) == 0) {
-			rc = curl_easy_setopt(h, CURLOPT_CAPATH, "/etc/ssl/certs");
+		char cabuf[256];
+		const char *ca = pc_http_ca_default(cabuf, sizeof(cabuf));
+		if (ca) {
+			struct stat st;
+			if (stat(ca, &st) == 0 && S_ISDIR(st.st_mode))
+				rc = curl_easy_setopt(h, CURLOPT_CAPATH, ca);
+			else
+				rc = curl_easy_setopt(h, CURLOPT_CAINFO, ca);
+			if (rc) return rc;
 		}
-		if (rc) return rc;
 	}
 	if (rc) return rc;
 	/* abort if slower than 1 byte/s for SSE_IDLE_TIMEOUT seconds */

@@ -7,6 +7,10 @@
 /* optional: path to CA bundle PEM; set before any http call (NULL = libcurl default) */
 extern const char *pc_http_ca_info;
 
+/* auto-detected CA location (file or dir); NULL if none found.
+ * buf used when the caller's config supplied nothing. */
+const char *pc_http_ca_default(char *buf, size_t bufsz);
+
 /* callback invoked for each complete SSE `data:` payload line (after "data: ").
  * Also invoked for other event lines' payloads; caller filters. */
 typedef void (*pc_sse_cb)(const char *payload, void *ud);

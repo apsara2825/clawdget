@@ -7,6 +7,7 @@
 #include <curl/curl.h>
 #include "wx_api.h"
 #include "http.h"
+#include <sys/stat.h>
 
 void wx_api_init(wx_api_t *api, const char *base_url, const char *token)
 {
@@ -88,12 +89,25 @@ static int do_request(const wx_api_t *api, const char *url, const char *post_bod
 	curl_easy_setopt(h, CURLOPT_LOW_SPEED_LIMIT, 1L);
 	curl_easy_setopt(h, CURLOPT_LOW_SPEED_TIME, 90L);
 	curl_easy_setopt(h, CURLOPT_FOLLOWLOCATION, 1L);
+	{
+		char cabuf[256];
+		const char *ca = pc_http_ca_default(cabuf, sizeof(cabuf));
+		if (ca) {
+			struct stat st;
+			if (stat(ca, &st) == 0 && S_ISDIR(st.st_mode))
+				curl_easy_setopt(h, CURLOPT_CAPATH, ca);
+			else
+				curl_easy_setopt(h, CURLOPT_CAINFO, ca);
+		}
+	}
 	if (post_body) {
 		curl_easy_setopt(h, CURLOPT_POST, 1L);
 		curl_easy_setopt(h, CURLOPT_POSTFIELDS, post_body);
 		curl_easy_setopt(h, CURLOPT_POSTFIELDSIZE, (long)strlen(post_body));
 	}
 
+	if (getenv("PICOCLAW_C_VERBOSE") || getenv("CLAWDGET_VERBOSE"))
+		curl_easy_setopt(h, CURLOPT_VERBOSE, 1L);
 	CURLcode rc = curl_easy_perform(h);
 	long code = 0;
 	curl_easy_getinfo(h, CURLINFO_RESPONSE_CODE, &code);

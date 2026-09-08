@@ -236,23 +236,20 @@ static void print_qr_terminal(const char *text)
 		return;
 	}
 	int size = qrcodegen_getSize(qr);
-	/* light-on-dark: dark module -> blank (bg), light -> block char */
-	for (int y = -2; y < size + 2; y += 2) {
-		for (int x = -2; x < size + 2; x++) {
+	/* theme-independent: explicit ANSI bg colors per half-cell.
+	 * dark module -> black bg, light module -> white bg. quiet zone 4. */
+	const char *black = "\033[48;5;0m ";
+	const char *white = "\033[48;5;15m ";
+	for (int y = -4; y < size + 4; y += 2) {
+		for (int x = -4; x < size + 4; x++) {
 			int top = (x >= 0 && x < size && y >= 0 && y < size)
 				      ? qrcodegen_getModule(qr, x, y) : 0;
 			int bot = (x >= 0 && x < size && y + 1 >= 0 && y + 1 < size)
 				      ? qrcodegen_getModule(qr, x, y + 1) : 0;
-			if (!top && !bot)
-				fputs("  ", stdout);
-			else if (top && !bot)
-				fputs("▄", stdout);
-			else if (!top && bot)
-				fputs("▀", stdout);
-			else
-				fputs(" ", stdout);
+			fputs(top ? black : white, stdout);
+			fputs(bot ? black : white, stdout);
 		}
-		fputc('\n', stdout);
+		fputs("\033[0m\n", stdout);
 	}
 	fflush(stdout);
 }

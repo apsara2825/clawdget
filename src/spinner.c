@@ -6,6 +6,7 @@
 #include <time.h>
 #include "spinner.h"
 
+static int g_allowed = 1;
 static pthread_t g_tid;
 static volatile int g_run;
 static volatile int g_started;
@@ -32,9 +33,14 @@ static void *spin_fn(void *arg)
 	return NULL;
 }
 
+void pc_thinking_set_enabled(int enabled)
+{
+	g_allowed = enabled;
+}
+
 void pc_thinking_start(void)
 {
-	if (g_started || !isatty(STDERR_FILENO))
+	if (g_started || !g_allowed || !isatty(STDERR_FILENO))
 		return;
 	g_run = 1;
 	g_cleared = 0;

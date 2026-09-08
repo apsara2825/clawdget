@@ -20,8 +20,19 @@ CURL_INC ?=
 CURL_LIB ?=
 
 SRC      := $(wildcard src/*.c) thirdparty/cjson.c
+# optional channels: make WEIXIN=1 (WeChat iLink channel, +~40KB)
+WEIXIN  ?= 0
+ifeq ($(WEIXIN),1)
+SRC      += src/weixin/wx_api.c src/weixin/wx.c thirdparty/qrcodegen.c
+endif
 CFLAGS   := -std=gnu99 -Wall -Wextra -Os -Isrc -Ithirdparty
+ifeq ($(WEIXIN),1)
+CFLAGS   += -DPC_WEIXIN
+endif
 X86FLAGS := -std=gnu99 -Wall -Wextra -g -O0 -Isrc -Ithirdparty
+ifeq ($(WEIXIN),1)
+X86FLAGS += -DPC_WEIXIN
+endif
 LDLIBS   := -lcurl -lpthread
 
 .PHONY: all debug test e2e mips clean

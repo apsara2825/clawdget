@@ -12,6 +12,6 @@
  * Prints assistant content to `out` (via provider streaming).
  * Returns 0 on success, -1 on error (err filled). */
 int agent_turn(const config_t *cfg, session_t *sess, const char *user_prompt,
-	       char *err, size_t errsz);
+	       char *err, size_t errsz, char **reply_out);
 
 #endif

@@ -166,6 +166,38 @@ make mips CROSS=mipsel-openwrt-linux- \
 也可以用环境变量临时覆盖：`CLAWDGET_API_BASE`、`CLAWDGET_API_KEY`、
 `CLAWDGET_MODEL`、`CLAWDGET_HOME`、`CLAWDGET_CONFIG`。
 
+## 微信渠道（可选编译）
+
+让 AI 通过你的个人微信号收发消息（基于腾讯官方 iLink API）：
+
+```sh
+# 1. 编译时启用微信支持（不加 WEIXIN=1 则完全不含此功能）
+make mips WEIXIN=1 CROSS=你的工具链前缀 CURL_INC=... CURL_LIB=... CURL_A=... MIPS_LIBS="-lssl -lcrypto"
+
+# 2. 扫码登录（终端会显示二维码，用微信扫一下）
+clawdget auth weixin
+
+# 3. 启动常驻网关（AI 开始接收并回复微信消息）
+clawdget gateway
+```
+
+配置文件里可以加白名单（只响应指定用户）：
+
+```json
+"channels": {
+  "weixin": {
+    "token": "也可以把 auth 拿到的 token 填这里",
+    "allow_from": ["微信用户ID"]
+  }
+}
+```
+
+注意事项：
+- token 与设备绑定，在别处扫码会把当前会话踢下线
+- 每个微信用户对应一个独立会话（`wx-xxx`），历史互相隔离
+- 目前支持文本消息；图片/语音仅显示占位符
+- ⚠️ 高频自动回复可能触发微信风控，请合理使用
+
 ## Skills：教 AI 新技能（不用写代码）
 
 一个 skill 就是一份 Markdown 操作手册，放进

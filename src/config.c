@@ -186,6 +186,24 @@ int config_load(config_t *cfg, const char *path, int *created_template,
 				}
 			}
 		}
+			cJSON *ch = cJSON_GetObjectItem(root, "channels");
+		cJSON *wx = ch ? cJSON_GetObjectItem(ch, "weixin") : NULL;
+		if (cJSON_IsObject(wx)) {
+			cJSON *v;
+			if ((v = cJSON_GetObjectItem(wx, "token")) && cJSON_IsString(v))
+				cfg->wx_token = xstrdup(v->valuestring);
+			if ((v = cJSON_GetObjectItem(wx, "allow_from")) && cJSON_IsArray(v)) {
+				int n = cJSON_GetArraySize(v);
+				if (n > 0) {
+					cfg->wx_allow = calloc((size_t)n, sizeof(char *));
+					for (int i = 0; i < n; i++) {
+						cJSON *e = cJSON_GetArrayItem(v, i);
+						if (cJSON_IsString(e))
+							cfg->wx_allow[cfg->wx_n_allow++] = xstrdup(e->valuestring);
+					}
+				}
+			}
+		}
 		cJSON_Delete(root);
 	}
 
@@ -194,6 +212,7 @@ int config_load(config_t *cfg, const char *path, int *created_template,
 	pick_str(&cfg->api_key, "CLAWDGET_API_KEY");
 	pick_str(&cfg->model, "CLAWDGET_MODEL");
 	pick_str(&cfg->ca_info, "CLAWDGET_CAINFO");
+	pick_str(&cfg->wx_token, "CLAWDGET_WX_TOKEN");
 
 	if (!cfg->workspace) {
 		char ws[1024];
@@ -218,5 +237,9 @@ void config_free(config_t *cfg)
 	for (int i = 0; i < cfg->n_allow; i++)
 		free(cfg->allow_paths[i]);
 	free(cfg->allow_paths);
+	free(cfg->wx_token);
+	for (int i = 0; i < cfg->wx_n_allow; i++)
+		free(cfg->wx_allow[i]);
+	free(cfg->wx_allow);
 	memset(cfg, 0, sizeof(*cfg));
 }

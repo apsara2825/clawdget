@@ -21,6 +21,9 @@ typedef struct {
 	char       *home;             /* default ~/.clawdget */
 	char      **allow_paths;      /* extra paths fs tools may touch */
 	int         n_allow;
+	char       *wx_token;         /* weixin channel: bot token */
+	char      **wx_allow;         /* weixin allowlist (user ids) */
+	int         wx_n_allow;
 	char       *config_path;      /* where it was loaded from */
 } config_t;
 

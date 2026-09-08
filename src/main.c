@@ -23,6 +23,9 @@
 #include "session.h"
 #include "util.h"
 #include "http.h"
+#ifdef PC_WEIXIN
+#include "weixin/wx.h"
+#endif
 #include "prompt.h"
 
 static void print_help(const char *prog)
@@ -33,6 +36,10 @@ static void print_help(const char *prog)
 		"  %s [options] [prompt ...]   one-shot prompt\n"
 		"  %s [options]                interactive REPL\n"
 		"  %s skill ls|add <url> [name]|rm <name>  manage skills\n"
+#ifdef PC_WEIXIN
+		"  %s gateway                 run the WeChat channel daemon\n"
+		"  %s auth weixin             WeChat QR login\n"
+#endif
 		"  %s ls                       list sessions\n"
 		"  %s rm <key>                 delete session\n\n"
 		"Options:\n"
@@ -42,7 +49,11 @@ static void print_help(const char *prog)
 		"  -y         auto mode: run tools without confirmation\n"
 		"  -h         this help\n\n"
 		"REPL commands: /new /ls /resume <key> /rm <key> /help /quit\n",
-		prog, prog, prog, prog, prog);
+		prog, prog, prog, prog, prog
+#ifdef PC_WEIXIN
+		, prog, prog
+#endif
+		);
 }
 
 static void print_sessions(const config_t *cfg)
@@ -143,7 +154,7 @@ static void print_recent(session_t *sess, int n)
 static void run_prompt(const config_t *cfg, session_t *sess, const char *prompt)
 {
 	char err[1024] = "";
-	if (agent_turn(cfg, sess, prompt, err, sizeof(err)) != 0) {
+	if (agent_turn(cfg, sess, prompt, err, sizeof(err), NULL) != 0) {
 		fprintf(stderr, "error: %s\n", err);
 	}
 }
@@ -267,6 +278,33 @@ int main(int argc, char **argv)
 			config_free(&cfg);
 			free(promptv);
 			return 0;
+#ifdef PC_WEIXIN
+		} else if (!strcmp(argv[i], "gateway")) {
+			config_t gcfg;
+			char gerr[256];
+			int gcreated;
+			if (config_load(&gcfg, cfg_path, &gcreated, gerr, sizeof(gerr)) != 0) {
+				fprintf(stderr, "error: %s\n", gerr);
+				return 1;
+			}
+			int grc = wx_gateway(&gcfg);
+			config_free(&gcfg);
+			free(promptv);
+			return grc;
+		} else if (!strcmp(argv[i], "auth") && i + 1 < argc &&
+			   !strcmp(argv[i + 1], "weixin")) {
+			config_t gcfg;
+			char gerr[256];
+			int gcreated;
+			if (config_load(&gcfg, cfg_path, &gcreated, gerr, sizeof(gerr)) != 0) {
+				fprintf(stderr, "error: %s\n", gerr);
+				return 1;
+			}
+			int grc = wx_auth_login(&gcfg);
+			config_free(&gcfg);
+			free(promptv);
+			return grc;
+#endif
 		} else if (!strcmp(argv[i], "ls") && i + 1 == argc) {
 			/* subcommand: list sessions */
 			config_t cfg;

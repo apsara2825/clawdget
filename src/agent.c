@@ -32,8 +32,10 @@ static cJSON *build_messages(const config_t *cfg, session_t *sess,
 }
 
 int agent_turn(const config_t *cfg, session_t *sess, const char *user_prompt,
-	       char *err, size_t errsz)
+	       char *err, size_t errsz, char **reply_out)
 {
+	if (reply_out)
+		*reply_out = NULL;
 	/* persist + append user message */
 	cJSON *user_msg = cJSON_CreateObject();
 	cJSON_AddStringToObject(user_msg, "role", "user");
@@ -76,6 +78,9 @@ int agent_turn(const config_t *cfg, session_t *sess, const char *user_prompt,
 				fputc('\n', stdout);
 				fflush(stdout);
 			}
+			if (reply_out)
+				*reply_out = resp.content
+						 ? strdup(resp.content) : NULL;
 			ret = 0;
 			pc_resp_free(&resp);
 			goto out;

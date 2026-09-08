@@ -113,6 +113,13 @@ Paths like `/etc/config/network` typed in the REPL are sent to the agent as
 normal text — only real commands (`/new` `/ls` `/resume` `/rm` `/help` `/quit`)
 are interpreted.
 
+## WeChat channel (optional)
+
+Built with `make WEIXIN=1`: `clawdget auth weixin` (QR login) then
+`clawdget gateway` (daemon) lets the agent chat over a personal WeChat
+account via Tencent's official iLink API. Text messages only; per-user
+sessions and an allowlist are supported. See README.zh-CN.md for details.
+
 ## Skills
 
 Teach your agent new tricks with plain Markdown. Each skill is a playbook the

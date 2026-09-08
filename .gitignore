@@ -14,3 +14,4 @@ scripts/
 build-arm/
 test/skillhome/
 .build-deps/
+release/

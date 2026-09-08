@@ -22,6 +22,10 @@ typedef struct {
 
 void wx_api_init(wx_api_t *api, const char *base_url, const char *token);
 
+/* point at a stop flag: when nonzero, in-flight transfers abort immediately
+ * (used so Ctrl-C can interrupt long-polling) */
+void wx_api_set_abort(volatile int *flag);
+
 /* POST endpoint with iLink headers; body is JSON; returns malloc'd response
  * body or NULL. err filled on failure. skip_auth: QR endpoints need no
  * Authorization headers. */

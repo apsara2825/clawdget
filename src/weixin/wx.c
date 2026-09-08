@@ -236,20 +236,20 @@ static void print_qr_terminal(const char *text)
 		return;
 	}
 	int size = qrcodegen_getSize(qr);
-	/* theme-independent: explicit ANSI bg colors per half-cell.
-	 * dark module -> black bg, light module -> white bg. quiet zone 4. */
-	const char *black = "\033[48;5;0m ";
-	const char *white = "\033[48;5;15m ";
-	for (int y = -4; y < size + 4; y += 2) {
-		for (int x = -4; x < size + 4; x++) {
-			int top = (x >= 0 && x < size && y >= 0 && y < size)
-				      ? qrcodegen_getModule(qr, x, y) : 0;
-			int bot = (x >= 0 && x < size && y + 1 >= 0 && y + 1 < size)
-				      ? qrcodegen_getModule(qr, x, y + 1) : 0;
-			fputs(top ? black : white, stdout);
-			fputs(bot ? black : white, stdout);
+	/* pure background-color rendering (spaces only): no glyph/shape
+	 * dependence, identical on every terminal and font.
+	 * two text rows per QR row keep the cells square. */
+	const char *B = "\033[48;5;0m  ";
+	const char *W = "\033[48;5;15m  ";
+	for (int yy = -4; yy < size + 4; yy++) {
+		for (int rep = 0; rep < 2; rep++) {
+			for (int x = -4; x < size + 4; x++) {
+				int dark = (x >= 0 && x < size && yy >= 0 && yy < size)
+					       ? qrcodegen_getModule(qr, x, yy) : 0;
+				fputs(dark ? B : W, stdout);
+			}
+			fputs("\033[0m\n", stdout);
 		}
-		fputs("\033[0m\n", stdout);
 	}
 	fflush(stdout);
 }
@@ -262,7 +262,10 @@ static char *wx_url_escape(const char *s)
 int wx_auth_login(const config_t *cfg)
 {
 	wx_api_t api;
+	volatile int stop_flag = 0;
+	wx_api_set_abort(&stop_flag);
 	wx_api_init(&api, NULL, "");
+	stop_flag = g_stop;
 
 	fprintf(stderr, "==> requesting WeChat QR code...\n");
 	char err[512] = "";
@@ -300,6 +303,7 @@ int wx_auth_login(const config_t *cfg)
 	time_t deadline = time(NULL) + 300;
 	int scanned_printed = 0;
 	while (time(NULL) < deadline && !g_stop) {
+		stop_flag = g_stop;
 		sleep(2);
 		char *esc = wx_url_escape(qrcode);
 		char ep[1200];

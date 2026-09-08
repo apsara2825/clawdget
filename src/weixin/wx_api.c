@@ -9,6 +9,20 @@
 #include "http.h"
 #include <sys/stat.h>
 
+static volatile int *g_abort = NULL;
+
+void wx_api_set_abort(volatile int *flag)
+{
+	g_abort = flag;
+}
+
+static int xfer_cb(void *p, curl_off_t dl, curl_off_t dln, curl_off_t ul,
+		   curl_off_t uln)
+{
+	(void)p; (void)dl; (void)dln; (void)ul; (void)uln;
+	return g_abort && *g_abort ? 1 : 0;
+}
+
 void wx_api_init(wx_api_t *api, const char *base_url, const char *token)
 {
 	memset(api, 0, sizeof(*api));
@@ -89,6 +103,9 @@ static int do_request(const wx_api_t *api, const char *url, const char *post_bod
 	curl_easy_setopt(h, CURLOPT_LOW_SPEED_LIMIT, 1L);
 	curl_easy_setopt(h, CURLOPT_LOW_SPEED_TIME, 90L);
 	curl_easy_setopt(h, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(h, CURLOPT_NOPROGRESS, 0L);
+	curl_easy_setopt(h, CURLOPT_XFERINFOFUNCTION, xfer_cb);
+	curl_easy_setopt(h, CURLOPT_PROGRESSDATA, g_abort);
 	{
 		char cabuf[256];
 		const char *ca = pc_http_ca_default(cabuf, sizeof(cabuf));
@@ -114,6 +131,11 @@ static int do_request(const wx_api_t *api, const char *url, const char *post_bod
 	curl_slist_free_all(hdrs);
 	curl_easy_cleanup(h);
 
+	if (rc == CURLE_ABORTED_BY_CALLBACK) {
+		snprintf(err, errsz, "aborted");
+		free(c.acc);
+		return -2;
+	}
 	if (rc != CURLE_OK) {
 		snprintf(err, errsz, "transport: %s", curl_easy_strerror(rc));
 		free(c.acc);

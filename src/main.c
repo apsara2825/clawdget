@@ -164,10 +164,15 @@ int main(int argc, char **argv)
 	const char *cfg_path = NULL;
 	const char *sess_key = NULL;
 	int force_new = 0;
-	int auto_mode = 0;
 	int pick_mode = 0;
 	int nargs = 0;
+	int auto_mode = 0;
 	const char **promptv = calloc((size_t)argc, sizeof(char *));
+
+	/* pre-scan: -y works in any position (gateway branch returns early) */
+	for (int i = 1; i < argc; i++)
+		if (!strcmp(argv[i], "-y") || !strcmp(argv[i], "--auto"))
+			auto_mode = 1;
 
 	for (int i = 1; i < argc; i++) {
 		if (!strcmp(argv[i], "-c") && i + 1 < argc) {
@@ -287,6 +292,8 @@ int main(int argc, char **argv)
 				fprintf(stderr, "error: %s\n", gerr);
 				return 1;
 			}
+			if (auto_mode)
+				gcfg.exec_confirm = 0;
 			int grc = wx_gateway(&gcfg);
 			config_free(&gcfg);
 			free(promptv);

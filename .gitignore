@@ -22,3 +22,5 @@ test/tg_run.log
 test/tg_mock.log
 test/sess-test/
 flags.stamp
+test/tg_mock.log
+test/tg_run.log

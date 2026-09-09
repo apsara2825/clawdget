@@ -15,3 +15,9 @@ build-arm/
 test/skillhome/
 .build-deps/
 release/
+flags.stamp
+src/ca_bundle.h
+test/tg_home/
+test/tg_run.log
+test/tg_mock.log
+test/sess-test/

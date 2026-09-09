@@ -203,6 +203,29 @@ int config_load(config_t *cfg, const char *path, int *created_template,
 					}
 				}
 			}
+			if ((v = cJSON_GetObjectItem(wx, "proxy")) && cJSON_IsString(v))
+				cfg->wx_proxy = xstrdup(v->valuestring);
+		}
+		cJSON *tg = ch ? cJSON_GetObjectItem(ch, "telegram") : NULL;
+		if (cJSON_IsObject(tg)) {
+			cJSON *v;
+			if ((v = cJSON_GetObjectItem(tg, "token")) && cJSON_IsString(v))
+				cfg->tg_token = xstrdup(v->valuestring);
+			if ((v = cJSON_GetObjectItem(tg, "proxy")) && cJSON_IsString(v))
+				cfg->tg_proxy = xstrdup(v->valuestring);
+			if ((v = cJSON_GetObjectItem(tg, "base_url")) && cJSON_IsString(v))
+				cfg->tg_base = xstrdup(v->valuestring);
+			if ((v = cJSON_GetObjectItem(tg, "allow_from")) && cJSON_IsArray(v)) {
+				int n = cJSON_GetArraySize(v);
+				if (n > 0) {
+					cfg->tg_allow = calloc((size_t)n, sizeof(char *));
+					for (int i = 0; i < n; i++) {
+						cJSON *e = cJSON_GetArrayItem(v, i);
+						if (cJSON_IsString(e))
+							cfg->tg_allow[cfg->tg_n_allow++] = xstrdup(e->valuestring);
+					}
+				}
+			}
 		}
 		cJSON_Delete(root);
 	}
@@ -213,6 +236,9 @@ int config_load(config_t *cfg, const char *path, int *created_template,
 	pick_str(&cfg->model, "CLAWDGET_MODEL");
 	pick_str(&cfg->ca_info, "CLAWDGET_CAINFO");
 	pick_str(&cfg->wx_token, "CLAWDGET_WX_TOKEN");
+	pick_str(&cfg->tg_token, "CLAWDGET_TG_TOKEN");
+	pick_str(&cfg->tg_proxy, "CLAWDGET_TG_PROXY");
+	pick_str(&cfg->tg_base, "CLAWDGET_TG_BASE");
 
 	if (!cfg->workspace) {
 		char ws[1024];
@@ -238,8 +264,14 @@ void config_free(config_t *cfg)
 		free(cfg->allow_paths[i]);
 	free(cfg->allow_paths);
 	free(cfg->wx_token);
+	free(cfg->wx_proxy);
+	free(cfg->tg_token);
+	free(cfg->tg_proxy);
 	for (int i = 0; i < cfg->wx_n_allow; i++)
 		free(cfg->wx_allow[i]);
 	free(cfg->wx_allow);
+	for (int i = 0; i < cfg->tg_n_allow; i++)
+		free(cfg->tg_allow[i]);
+	free(cfg->tg_allow);
 	memset(cfg, 0, sizeof(*cfg));
 }

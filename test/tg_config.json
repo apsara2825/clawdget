@@ -1,0 +1,4 @@
+{
+  "model_list": [{"api_base": "http://127.0.0.1:8793/v1", "api_key": "k", "model": "m"}],
+  "channels": {"telegram": {"token": "123:TEST", "base_url": "http://127.0.0.1:8793"}}
+}

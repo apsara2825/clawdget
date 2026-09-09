@@ -283,7 +283,7 @@ int main(int argc, char **argv)
 			config_free(&cfg);
 			free(promptv);
 			return 0;
-#ifdef PC_WEIXIN
+#if defined(PC_WEIXIN) || defined(PC_TELEGRAM)
 		} else if (!strcmp(argv[i], "gateway")) {
 			config_t gcfg;
 			char gerr[256];
@@ -294,10 +294,12 @@ int main(int argc, char **argv)
 			}
 			if (auto_mode)
 				gcfg.exec_confirm = 0;
-			int grc = wx_gateway(&gcfg);
+			int grc = gateway_run(&gcfg, auto_mode);
 			config_free(&gcfg);
 			free(promptv);
 			return grc;
+#endif
+#ifdef PC_WEIXIN
 		} else if (!strcmp(argv[i], "auth") && i + 1 < argc &&
 			   !strcmp(argv[i + 1], "weixin")) {
 			config_t gcfg;

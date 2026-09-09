@@ -19,14 +19,15 @@
 #include "spinner.h"
 #include "util.h"
 #include "qrcodegen.h"
+#include "gateway.h"
+#include <pthread.h>
 
 #define WX_STATE_DIR_NAME "weixin"
 #define WX_BOT_TYPE       "3"
 #define WX_POLL_ERR_BACKOFF 5   /* seconds after a failed poll */
 #define WX_RECENT_MAX_TOKENS 64
 
-static volatile sig_atomic_t g_stop = 0;
-static void on_signal(int sig) { (void)sig; g_stop = 1; }
+#define g_stop pc_gateway_stop
 
 /* ---------------- state helpers ---------------- */
 
@@ -262,10 +263,8 @@ static char *wx_url_escape(const char *s)
 int wx_auth_login(const config_t *cfg)
 {
 	wx_api_t api;
-	volatile int stop_flag = 0;
-	wx_api_set_abort(&stop_flag);
+	wx_api_set_abort(&g_stop);
 	wx_api_init(&api, NULL, "");
-	stop_flag = g_stop;
 
 	fprintf(stderr, "==> requesting WeChat QR code...\n");
 	char err[512] = "";
@@ -303,7 +302,6 @@ int wx_auth_login(const config_t *cfg)
 	time_t deadline = time(NULL) + 300;
 	int scanned_printed = 0;
 	while (time(NULL) < deadline && !g_stop) {
-		stop_flag = g_stop;
 		sleep(2);
 		char *esc = wx_url_escape(qrcode);
 		char ep[1200];
@@ -397,12 +395,32 @@ static void sanitize_session_key(const char *user, char *out, size_t sz)
 	out[j] = 0;
 }
 
-int wx_gateway(const config_t *cfg)
+static int wx_have_saved_token(const config_t *cfg)
 {
-	signal(SIGINT, on_signal);
-	signal(SIGTERM, on_signal);
-	pc_thinking_set_enabled(0);
+	char tpath[1024];
+	snprintf(tpath, sizeof(tpath), "%s/" WX_STATE_DIR_NAME "/token.txt",
+		 cfg->home);
+	size_t len;
+	int trunc;
+	char *t = util_read_file(tpath, 4096, &len, &trunc);
+	if (!t)
+		return 0;
+	free(t);
+	return 1;
+}
 
+static void *wx_channel_loop(void *arg);
+
+int wx_channel_thread_start(const config_t *cfg, pthread_t *tid)
+{
+	if ((!cfg->wx_token || !cfg->wx_token[0]) && !wx_have_saved_token(cfg))
+		return -1;
+	return pthread_create(tid, NULL, wx_channel_loop, (void *)cfg);
+}
+
+static void *wx_channel_loop(void *arg)
+{
+	const config_t *cfg = arg;
 	char token[512] = "";
 	if (cfg->wx_token && cfg->wx_token[0]) {
 		snprintf(token, sizeof(token), "%s", cfg->wx_token);
@@ -608,6 +626,6 @@ int wx_gateway(const config_t *cfg)
 
 	free(sync_buf);
 	ctokens_save(cfg);
-	fprintf(stderr, "\n[gateway] 退出\n");
-	return 0;
+	fprintf(stderr, "\n[wx] 渠道退出\n");
+	return NULL;
 }

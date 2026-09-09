@@ -80,6 +80,7 @@ any Linux device: x86 mini PCs, ARM boards, NAS, set-top boxes …
 - **7 built-in tools** — `exec` `read_file` `write_file` `edit_file` `list_dir` `http_fetch` `sysinfo`
 - **Skills** — drop Markdown playbooks into `workspace/skills/<name>/SKILL.md`; the agent discovers and follows them
 - **WeChat channel (optional)** — chat with the agent over a personal WeChat account via Tencent's official iLink API (`make WEIXIN=1`)
+- **Telegram channel (optional)** — Bot API long-polling with native proxy support (`make TELEGRAM=1`)
 - **Safety defaults** — `exec` asks y/n per command; file tools are jailed to a workspace; `-y` / `"auto": true` lifts restrictions at your own risk
 - **Streaming** — SSE deltas print as they arrive, with a `thinking...` indicator while waiting
 - **Sessions** — append-only JSONL per session (crash-safe `fsync`), `ls` / `resume` / `rm`
@@ -196,6 +197,27 @@ description: Health-check the router and write a report
 
 Install from a URL: `clawdget skill add https://example.com/skill.md`
 
+## Telegram channel (optional build)
+
+```sh
+make mips TELEGRAM=1 CROSS=<toolchain-prefix> ...
+```
+
+Config:
+
+```json
+"channels": {
+  "telegram": {
+    "token": "bot token from BotFather",
+    "proxy": "socks5://127.0.0.1:1080",
+    "allow_from": [12345678, "@yourname"]
+  }
+}
+```
+
+Long-polling based; `proxy` accepts anything libcurl understands (socks5/http).
+`clawdget gateway` starts every enabled channel.
+
 ## WeChat channel (optional build)
 
 Chat with the agent over a personal WeChat account through Tencent's official
@@ -269,11 +291,13 @@ src/
 ├── session.c    JSONL multi-session store
 ├── prompt.c     system prompt
 ├── spinner.c    "thinking..." indicator
+├── gateway.c    multi-channel gateway (one thread per channel)
 ├── http.c       libcurl wrapper (SSE stream / buffered POST / GET)
 └── util.c       helpers
 thirdparty/cjson.c       minimal cJSON-compatible JSON library
 thirdparty/qrcodegen.c   QR code generation (WeChat channel)
 src/weixin/              WeChat channel (compiled with WEIXIN=1)
+src/telegram/            Telegram channel (compiled with TELEGRAM=1)
 ```
 
 ## Roadmap

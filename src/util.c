@@ -71,6 +71,19 @@ char *util_read_file(const char *path, size_t max_bytes, size_t *out_len, int *t
 	return buf;
 }
 
+int util_write_line(const char *path, const char *content)
+{
+	char tmp[1024];
+	snprintf(tmp, sizeof(tmp), "%s.tmp", path);
+	FILE *fp = fopen(tmp, "w");
+	if (!fp)
+		return -1;
+	fputs(content ? content : "", fp);
+	fputc('\n', fp);
+	fclose(fp);
+	return rename(tmp, path);
+}
+
 void util_mkdir_p(const char *path)
 {
 	char tmp[PATH_MAX];

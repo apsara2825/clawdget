@@ -71,6 +71,7 @@ Linux 设备上：x86 小主机、ARM 开发板、NAS、机顶盒……
 - **7 个内置工具** — `exec` `read_file` `write_file` `edit_file` `list_dir` `http_fetch` `sysinfo`
 - **Skills 技能系统** — 往 `workspace/skills/` 里扔一份 Markdown 手册，AI 自动发现并照做
 - **微信接入（可选编译）** — 基于腾讯官方 iLink API，个人微信号变成 AI 助手
+- **Telegram 渠道（可选编译）** — Bot API 长轮询，原生支持代理
 - **安全默认** — exec 逐条 y/n 确认；文件工具锁定 workspace；`-y` 解锁全自动
 - **流式输出** — SSE 边收边显示，等待时有 `thinking...` 动态指示
 - **多会话** — JSONL 持久化（掉电安全），`ls`/`resume`/`rm` 管理
@@ -184,6 +185,31 @@ description: 对路由器做健康检查并生成报告
 
 也可以安装别人写好的：`clawdget skill add https://example.com/skill.md`
 
+## Telegram 渠道（可选编译）
+
+```sh
+# 编译时启用
+make mips TELEGRAM=1 CROSS=工具链前缀 ...
+```
+
+配置文件：
+
+```json
+"channels": {
+  "telegram": {
+    "token": "BotFather 给的 bot token",
+    "proxy": "socks5://127.0.0.1:1080",
+    "base_url": "https://api.telegram.org",
+    "allow_from": [12345678, "@你的用户名"]
+  }
+}
+```
+
+- `proxy` 支持任意 libcurl 代理写法（`socks5://`、`http://`），国内网络必备
+- `base_url` 可换成自建/镜像 API 地址
+- `allow_from` 支持 chat id 或 `@用户名`；为空则任何私聊都响应
+- 常驻运行：`clawdget gateway`（自动启动所有已启用渠道，微信/Telegram 可同时开）
+
 ## 微信渠道（可选编译）
 
 让 AI 通过个人微信号收发消息（基于腾讯官方 iLink API，非逆向协议）：
@@ -254,11 +280,13 @@ src/
 ├── session.c    JSONL 多会话存储
 ├── prompt.c     system prompt
 ├── spinner.c    thinking 指示器
+├── gateway.c    多渠道网关（每渠道一个线程）
 ├── http.c       libcurl 封装（SSE 流式 / 缓冲 POST / GET）
 └── util.c       工具函数
 thirdparty/cjson.c       cJSON 兼容最小实现
 thirdparty/qrcodegen.c   二维码生成（微信渠道用）
 src/weixin/              微信渠道（WEIXIN=1 时编译）
+src/telegram/            Telegram 渠道（TELEGRAM=1 时编译）
 ```
 
 ## 路线图

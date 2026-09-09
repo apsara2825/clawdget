@@ -16,6 +16,9 @@ char *util_read_file(const char *path, size_t max_bytes, size_t *out_len, int *t
 /* mkdir -p */
 void util_mkdir_p(const char *path);
 
+/* write one line (content + \n) via tmp-file + rename (crash safe). 0 on ok */
+int util_write_line(const char *path, const char *content);
+
 /* check path is under base (path traversal guard). both must be absolute-ish;
  * returns 1 if ok */
 int util_path_under(const char *path, const char *base, char *err, size_t errsz);

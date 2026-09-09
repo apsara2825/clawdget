@@ -1,11 +1,2 @@
-Traceback (LLM-SERVED
- call last):
-  File "test/mock_tg.py", line 41, in <module>
-    HTTPServer(("127.0.0.1", 8793), H).serve_forever()
-  File "/usr/lib/python3.8/socketserver.py", line 452, in __init__
-    self.server_bind()
-  File "/usr/lib/python3.8/http/server.py", line 138, in server_bind
-    socketserver.TCPServer.server_bind(self)
-  File "/usr/lib/python3.8/socketserver.py", line 466, in server_bind
-    self.socket.bind(self.server_address)
-OSError: [Errno 98] Address already in use
+LLM-SERVED
+SENT: mock reply from LLM

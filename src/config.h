@@ -24,6 +24,12 @@ typedef struct {
 	char       *wx_token;         /* weixin channel: bot token */
 	char      **wx_allow;         /* weixin allowlist (user ids) */
 	int         wx_n_allow;
+	char       *wx_proxy;         /* weixin: http/socks5 proxy URL */
+	char       *tg_token;         /* telegram: bot token */
+	char       *tg_proxy;         /* telegram: http/socks5 proxy URL */
+	char       *tg_base;          /* telegram: api base override */
+	char      **tg_allow;         /* telegram allowlist (chat id or @username) */
+	int         tg_n_allow;
 	char       *config_path;      /* where it was loaded from */
 } config_t;
 

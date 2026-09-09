@@ -208,6 +208,9 @@ make mips TELEGRAM=1 CROSS=工具链前缀 ...
 - `proxy` 支持任意 libcurl 代理写法（`socks5://`、`http://`），国内网络必备
 - `base_url` 可换成自建/镜像 API 地址
 - `allow_from` 支持 chat id 或 `@用户名`；为空则任何私聊都响应
+  （ID 可通过 Telegram 里的 `@userinfobot` 查询）
+- 超过 4000 字符的回复自动分段发送；图片/语音/文件消息以占位符转给 AI
+- 回复为纯文本（MarkdownV2 格式化暂不支持）
 - 常驻运行：`clawdget gateway`（自动启动所有已启用渠道，微信/Telegram 可同时开）
 
 ## 微信渠道（可选编译）

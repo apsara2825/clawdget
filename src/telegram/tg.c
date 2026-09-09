@@ -21,8 +21,8 @@ int tg_channel_thread_start(const config_t *cfg, pthread_t *tid);
 
 static long g_offset = 0;
 
-static int tg_send_text(const tg_api_t *api, long chat_id, const char *text,
-			char *err, size_t errsz)
+static int tg_send_one(const tg_api_t *api, long chat_id, const char *text,
+		       char *err, size_t errsz)
 {
 	cJSON *body = cJSON_CreateObject();
 	cJSON_AddNumberToObject(body, "chat_id", chat_id);
@@ -41,7 +41,7 @@ static int tg_send_text(const tg_api_t *api, long chat_id, const char *text,
 	cJSON *j = cJSON_Parse(resp);
 	if (j) {
 		cJSON *ok = cJSON_GetObjectItem(j, "ok");
-		if (cJSON_IsTrue(ok) == NULL)
+		if (ok == NULL || !cJSON_IsTrue(ok))
 			bad = 1;
 		cJSON_Delete(j);
 	} else {
@@ -50,6 +50,40 @@ static int tg_send_text(const tg_api_t *api, long chat_id, const char *text,
 	}
 	free(resp);
 	return bad ? -1 : 0;
+}
+
+/* Telegram hard limit: 4096 UTF-16 code units per message. Split at a
+ * UTF-8 character boundary so multi-byte chars never break. */
+static int tg_send_text(const tg_api_t *api, long chat_id, const char *text,
+			char *err, size_t errsz)
+{
+	size_t total = strlen(text);
+	if (total <= 4000)
+		return tg_send_one(api, chat_id, text, err, errsz);
+
+	const char *p = text;
+	int part = 0, rc = 0;
+	while (*p && rc == 0) {
+		size_t len = 0;
+		while (len < 3800 && p[len]) {
+			unsigned char c = (unsigned char)p[len];
+			size_t cw = (c < 0x80) ? 1 : (c & 0xE0) == 0xC0 ? 2
+				  : (c & 0xF0) == 0xE0 ? 3
+				  : (c & 0xF8) == 0xF0 ? 4 : 1;
+			if (len + cw > 3800)
+				break;
+			len += cw;
+		}
+		char chunk[4000];
+		memcpy(chunk, p, len);
+		chunk[len] = 0;
+		part++;
+		if (part > 1 || *p != text[0] || len != total)
+			; /* multi-part: no marker to keep text clean */
+		rc = tg_send_one(api, chat_id, chunk, err, errsz);
+		p += len;
+	}
+	return rc;
 }
 
 static int tg_allowed(const config_t *cfg, const char *uid,
@@ -159,9 +193,34 @@ static void *tg_channel_loop(void *arg)
 				cJSON *msg = cJSON_GetObjectItem(up, "message");
 				if (!cJSON_IsObject(msg))
 					continue;
-				cJSON *text = cJSON_GetObjectItem(msg, "text");
-				if (!cJSON_IsString(text) || !text->valuestring[0])
-					continue; /* media: skip in v1 */
+				/* text or placeholder, mirroring picoclaw:
+				 * media messages become [photo]/[voice]/... */
+				char mtext[512];
+				{
+					cJSON *tx = cJSON_GetObjectItem(msg, "text");
+					cJSON *cap = cJSON_GetObjectItem(msg, "caption");
+					if (cJSON_IsString(tx) && tx->valuestring[0]) {
+						snprintf(mtext, sizeof(mtext), "%s", tx->valuestring);
+					} else if (cJSON_IsString(cap) && cap->valuestring[0]) {
+						snprintf(mtext, sizeof(mtext), "%s", cap->valuestring);
+					} else if (cJSON_GetObjectItem(msg, "photo")) {
+						snprintf(mtext, sizeof(mtext), "[图片]");
+					} else if (cJSON_GetObjectItem(msg, "voice")) {
+						snprintf(mtext, sizeof(mtext), "[语音]");
+					} else if (cJSON_GetObjectItem(msg, "audio")) {
+						snprintf(mtext, sizeof(mtext), "[音频]");
+					} else if (cJSON_GetObjectItem(msg, "document")) {
+						cJSON *doc = cJSON_GetObjectItem(msg, "document");
+						cJSON *fn = cJSON_GetObjectItem(doc, "file_name");
+						snprintf(mtext, sizeof(mtext), "[文件: %s]",
+							 cJSON_IsString(fn) ? fn->valuestring : "?");
+					} else if (cJSON_GetObjectItem(msg, "sticker")) {
+						snprintf(mtext, sizeof(mtext), "[贴纸]");
+					} else {
+						continue; /* unrelated update */
+					}
+				}
+				const char *text = mtext;
 				cJSON *chat = cJSON_GetObjectItem(msg, "chat");
 				cJSON *cid = cJSON_GetObjectItem(chat, "id");
 				if (!cJSON_IsNumber(cid))
@@ -189,7 +248,7 @@ static void *tg_channel_loop(void *arg)
 				}
 
 				fprintf(stderr, "[tg] %s: %.80s\n", who,
-					text->valuestring);
+					text);
 
 				char sesskey[160];
 				sanitize_session_key(chat_str, sesskey,
@@ -199,7 +258,7 @@ static void *tg_channel_loop(void *arg)
 					continue;
 				char aerr[512] = "";
 				char *reply = NULL;
-				int arc = agent_turn(cfg, &sess, text->valuestring,
+				int arc = agent_turn(cfg, &sess, text,
 						     aerr, sizeof(aerr), &reply);
 				session_close(&sess);
 				if (arc != 0) {

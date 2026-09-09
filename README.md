@@ -216,6 +216,9 @@ Config:
 ```
 
 Long-polling based; `proxy` accepts anything libcurl understands (socks5/http).
+`allow_from` takes chat ids or @usernames (get yours from `@userinfobot`).
+Replies longer than 4000 chars are split automatically; media messages are
+forwarded as placeholders. Plain text replies (MarkdownV2 not yet supported).
 `clawdget gateway` starts every enabled channel.
 
 ## WeChat channel (optional build)

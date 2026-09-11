@@ -24,3 +24,4 @@ test/sess-test/
 flags.stamp
 test/tg_mock.log
 test/tg_run.log
+release-static/

@@ -108,17 +108,7 @@ static int do_request(const wx_api_t *api, const char *url, const char *post_bod
 	curl_easy_setopt(h, CURLOPT_NOPROGRESS, 0L);
 	curl_easy_setopt(h, CURLOPT_XFERINFOFUNCTION, xfer_cb);
 	curl_easy_setopt(h, CURLOPT_PROGRESSDATA, g_abort);
-	{
-		char cabuf[256];
-		const char *ca = pc_http_ca_default(cabuf, sizeof(cabuf));
-		if (ca) {
-			struct stat st;
-			if (stat(ca, &st) == 0 && S_ISDIR(st.st_mode))
-				curl_easy_setopt(h, CURLOPT_CAPATH, ca);
-			else
-				curl_easy_setopt(h, CURLOPT_CAINFO, ca);
-		}
-	}
+	pc_http_apply_ca(h, NULL);
 	if (post_body) {
 		curl_easy_setopt(h, CURLOPT_POST, 1L);
 		curl_easy_setopt(h, CURLOPT_POSTFIELDS, post_body);

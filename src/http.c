@@ -12,6 +12,20 @@ const char *pc_http_ca_info = NULL;
 
 /* shared CA auto-detection: configured value, else well-known locations.
  * returns CAINFO file path / CAPATH dir string, or NULL if nothing found. */
+void pc_http_apply_ca(CURL *h, const char *configured)
+{
+	char buf[256];
+	const char *ca = (configured && *configured) ? configured
+			     : pc_http_ca_default(buf, sizeof(buf));
+	if (!ca)
+		return;
+	struct stat st;
+	if (stat(ca, &st) == 0 && S_ISDIR(st.st_mode))
+		curl_easy_setopt(h, CURLOPT_CAPATH, ca);
+	else
+		curl_easy_setopt(h, CURLOPT_CAINFO, ca);
+}
+
 const char *pc_http_ca_default(char *buf, size_t bufsz)
 {
 	if (pc_http_ca_info && *pc_http_ca_info)
@@ -171,17 +185,7 @@ static CURLcode common_setup(CURL *h, const char *url, const char *auth)
 		rc = curl_easy_setopt(h, CURLOPT_CAINFO, pc_http_ca_info);
 		if (rc) return rc;
 	} else {
-		/* embedded defaults: CA bundle file, then hashed cert dir */
-		char cabuf[256];
-		const char *ca = pc_http_ca_default(cabuf, sizeof(cabuf));
-		if (ca) {
-			struct stat st;
-			if (stat(ca, &st) == 0 && S_ISDIR(st.st_mode))
-				rc = curl_easy_setopt(h, CURLOPT_CAPATH, ca);
-			else
-				rc = curl_easy_setopt(h, CURLOPT_CAINFO, ca);
-			if (rc) return rc;
-		}
+		pc_http_apply_ca(h, NULL);
 	}
 	if (rc) return rc;
 	/* abort if slower than 1 byte/s for SSE_IDLE_TIMEOUT seconds */

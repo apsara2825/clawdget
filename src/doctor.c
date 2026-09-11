@@ -231,6 +231,7 @@ int doctor_run(const config_t *cfg)
 	curl_easy_setopt(h2, CURLOPT_CONNECTTIMEOUT, 15L);
 	curl_easy_setopt(h2, CURLOPT_TIMEOUT, 25L);
 	curl_easy_setopt(h2, CURLOPT_ERRORBUFFER, aerr);
+	pc_http_apply_ca(h2, cfg->ca_info);
 	curl_easy_setopt(h2, CURLOPT_FOLLOWLOCATION, 1L);
 	CURLcode r2 = curl_easy_perform(h2);
 	curl_easy_getinfo(h2, CURLINFO_RESPONSE_CODE, &code2);

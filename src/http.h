@@ -3,6 +3,7 @@
 #define PC_HTTP_H
 
 #include <stddef.h>
+#include <curl/curl.h>
 
 /* optional: path to CA bundle PEM; set before any http call (NULL = libcurl default) */
 extern const char *pc_http_ca_info;
@@ -10,6 +11,10 @@ extern const char *pc_http_ca_info;
 /* auto-detected CA location (file or dir); NULL if none found.
  * buf used when the caller's config supplied nothing. */
 const char *pc_http_ca_default(char *buf, size_t bufsz);
+
+/* apply the right CA option to a curl handle (CAPATH for dirs,
+ * CAINFO for files). configured: caller's ca_info or NULL. */
+void pc_http_apply_ca(CURL *h, const char *configured);
 
 /* callback invoked for each complete SSE `data:` payload line (after "data: ").
  * Also invoked for other event lines' payloads; caller filters. */

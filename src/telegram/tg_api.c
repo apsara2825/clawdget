@@ -6,6 +6,7 @@
 #include <curl/curl.h>
 #include "tg_api.h"
 #include "http.h"
+#include "http.h"
 
 static volatile int *g_abort = NULL;
 
@@ -77,6 +78,7 @@ char *tg_post(const tg_api_t *api, const char *method, const char *json_body,
 	curl_easy_setopt(h, CURLOPT_WRITEDATA, &buf);
 	curl_easy_setopt(h, CURLOPT_NOSIGNAL, 1L);
 	curl_easy_setopt(h, CURLOPT_CONNECTTIMEOUT, 30L);
+	pc_http_apply_ca(h, NULL);
 	curl_easy_setopt(h, CURLOPT_NOPROXY,
 			 "localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16");
 	curl_easy_setopt(h, CURLOPT_LOW_SPEED_LIMIT, 1L);

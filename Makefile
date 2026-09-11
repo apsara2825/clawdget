@@ -13,6 +13,9 @@
 #   CROSS=mipsel-linux-musl- ./build-static.sh
 # Personal overrides go in local.mk (git-ignored).
 
+# tests always talk to localhost mocks: never inherit outer proxy settings
+unexport http_proxy https_proxy ALL_PROXY all_proxy
+
 -include local.mk
 
 CROSS    ?= mipsel-openwrt-linux-
@@ -20,6 +23,9 @@ CURL_INC ?=
 CURL_LIB ?=
 
 SRC      := $(filter-out src/gateway.c,$(wildcard src/*.c)) thirdparty/cjson.c
+ifeq ($(filter src/doctor.c,$(SRC)),)
+SRC      += src/doctor.c
+endif
 # optional channels: make WEIXIN=1 (WeChat iLink channel, +~40KB)
 WEIXIN   ?= 0
 TELEGRAM ?= 0

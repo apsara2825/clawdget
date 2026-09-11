@@ -103,6 +103,8 @@ static int do_request(const wx_api_t *api, const char *url, const char *post_bod
 	curl_easy_setopt(h, CURLOPT_LOW_SPEED_LIMIT, 1L);
 	curl_easy_setopt(h, CURLOPT_LOW_SPEED_TIME, 90L);
 	curl_easy_setopt(h, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(h, CURLOPT_NOPROXY,
+			 "localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16");
 	curl_easy_setopt(h, CURLOPT_NOPROGRESS, 0L);
 	curl_easy_setopt(h, CURLOPT_XFERINFOFUNCTION, xfer_cb);
 	curl_easy_setopt(h, CURLOPT_PROGRESSDATA, g_abort);

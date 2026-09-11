@@ -23,6 +23,7 @@
 #include "session.h"
 #include "util.h"
 #include "http.h"
+#include "doctor.h"
 #ifdef PC_WEIXIN
 #include "weixin/wx.h"
 #endif
@@ -40,6 +41,7 @@ static void print_help(const char *prog)
 		"  %s gateway                 run the WeChat channel daemon\n"
 		"  %s auth weixin             WeChat QR login\n"
 #endif
+		"  %s doctor                   diagnose API connectivity\n"
 		"  %s ls                       list sessions\n"
 		"  %s rm <key>                 delete session\n\n"
 		"Options:\n"
@@ -49,7 +51,7 @@ static void print_help(const char *prog)
 		"  -y         auto mode: run tools without confirmation\n"
 		"  -h         this help\n\n"
 		"REPL commands: /new /ls /resume <key> /rm <key> /help /quit\n",
-		prog, prog, prog, prog, prog
+		prog, prog, prog, prog, prog, prog
 #ifdef PC_WEIXIN
 		, prog, prog
 #endif
@@ -283,6 +285,18 @@ int main(int argc, char **argv)
 			config_free(&cfg);
 			free(promptv);
 			return 0;
+		} else if (!strcmp(argv[i], "doctor")) {
+			config_t dcfg;
+			char derr[256];
+			int dcreated;
+			if (config_load(&dcfg, cfg_path, &dcreated, derr, sizeof(derr)) != 0) {
+				fprintf(stderr, "error: %s\n", derr);
+				return 1;
+			}
+			int drc = doctor_run(&dcfg);
+			config_free(&dcfg);
+			free(promptv);
+			return drc;
 #if defined(PC_WEIXIN) || defined(PC_TELEGRAM)
 		} else if (!strcmp(argv[i], "gateway")) {
 			config_t gcfg;
@@ -313,7 +327,8 @@ int main(int argc, char **argv)
 			config_free(&gcfg);
 			free(promptv);
 			return grc;
-#endif
+#endif /* PC_WEIXIN */
+		} else if (!strcmp(argv[i], "ls") && i + 1 == argc) {
 		} else if (!strcmp(argv[i], "ls") && i + 1 == argc) {
 			/* subcommand: list sessions */
 			config_t cfg;

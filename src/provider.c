@@ -216,22 +216,45 @@ int provider_chat(const config_t *cfg, cJSON *messages, cJSON *tools_defs,
 		st.resp = out;
 		st.out = out_stream;
 		pc_http_result res;
-		pc_thinking_start();
-		int rc = http_post_stream(url, cfg->api_key, reqbody, on_data, &st, &res);
-		pc_thinking_stop();
-		if (out_stream)
-			fflush(out_stream);
-		if (res.curl_err[0]) {
-			snprintf(err, errsz, "transport: %s", res.curl_err);
-		} else if (res.http_code != 200) {
-			if (res.err_body)
-				parse_error_body(res.err_body, err, errsz);
-			else
-				snprintf(err, errsz, "HTTP %ld", res.http_code);
-		} else {
-			ret = 0;
+		for (int attempt = 0; attempt < 2; attempt++) {
+			if (attempt > 0) {
+				if (out_stream)
+					fprintf(out_stream,
+						"[重试 %d/1]...\n", attempt);
+				struct timespec ts = {2, 0};
+				nanosleep(&ts, NULL);
+			}
+			pc_thinking_start();
+			int rc = http_post_stream(url, cfg->api_key, reqbody,
+						  on_data, &st, &res);
+			pc_thinking_stop();
+			if (out_stream)
+				fflush(out_stream);
+			if (res.curl_err[0]) {
+				snprintf(err, errsz, "transport: %s",
+					 res.curl_err);
+				/* retry transient network errors once */
+				if (strstr(res.curl_err, "(curl 7)") ||
+				    strstr(res.curl_err, "(curl 28)") ||
+				    strstr(res.curl_err, "(curl 56)")) {
+					free(res.err_body);
+					memset(&res, 0, sizeof(res));
+					continue;
+				}
+				strncat(err, "（运行 clawdget doctor 可诊断）",
+					errsz - strlen(err) - 1);
+			} else if (res.http_code != 200) {
+				if (res.err_body)
+					parse_error_body(res.err_body, err, errsz);
+				else
+					snprintf(err, errsz, "HTTP %ld",
+						 res.http_code);
+			} else {
+				ret = 0;
+			}
+			free(res.err_body);
+			break;
 		}
-		free(res.err_body);
 	} else {
 		/* non-stream: buffered POST, parse the full JSON response */
 		char *resp_body = NULL;

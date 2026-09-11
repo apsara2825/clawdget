@@ -17,6 +17,7 @@ typedef struct {
 	int         max_history;      /* sliding window, 0 = unlimited */
 	int         stream;           /* default 1 */
 	char       *ca_info;          /* path to CA bundle PEM (optional) */
+	char       *api_proxy;        /* proxy for LLM API requests (optional) */
 	char       *workspace;        /* default {home}/workspace */
 	char       *home;             /* default ~/.clawdget */
 	char      **allow_paths;      /* extra paths fs tools may touch */

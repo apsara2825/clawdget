@@ -71,6 +71,8 @@ int doctor_run(const config_t *cfg)
 	extract_host(cfg->api_base, host, sizeof(host), scheme, sizeof(scheme),
 		     port, sizeof(port));
 	fprintf(stderr, "主机     : %s (端口 %s)\n", host, port);
+	if (cfg->api_proxy && *cfg->api_proxy)
+		fprintf(stderr, "代理     : %s（API 请求将经此代理）\n", cfg->api_proxy);
 	{
 		const char *hp = getenv("http_proxy");
 		const char *hps = getenv("https_proxy");
@@ -149,6 +151,8 @@ int doctor_run(const config_t *cfg)
 	curl_easy_setopt(h, CURLOPT_CONNECTTIMEOUT, 15L);
 	curl_easy_setopt(h, CURLOPT_TIMEOUT, 25L);
 	curl_easy_setopt(h, CURLOPT_ERRORBUFFER, cerr);
+	if (cfg->api_proxy && *cfg->api_proxy)
+		curl_easy_setopt(h, CURLOPT_PROXY, cfg->api_proxy);
 	curl_easy_setopt(h, CURLOPT_FOLLOWLOCATION, 1L);
 	/* same CA logic as the real request path */
 	if (cfg->ca_info && *cfg->ca_info) {
@@ -231,6 +235,8 @@ int doctor_run(const config_t *cfg)
 	curl_easy_setopt(h2, CURLOPT_CONNECTTIMEOUT, 15L);
 	curl_easy_setopt(h2, CURLOPT_TIMEOUT, 25L);
 	curl_easy_setopt(h2, CURLOPT_ERRORBUFFER, aerr);
+	if (cfg->api_proxy && *cfg->api_proxy)
+		curl_easy_setopt(h2, CURLOPT_PROXY, cfg->api_proxy);
 	pc_http_apply_ca(h2, cfg->ca_info);
 	curl_easy_setopt(h2, CURLOPT_FOLLOWLOCATION, 1L);
 	CURLcode r2 = curl_easy_perform(h2);

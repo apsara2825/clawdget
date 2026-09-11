@@ -155,7 +155,8 @@ call.
       "api_key": "sk-xxx",
       "model": "deepseek-chat",
       "temperature": 0.7,            // optional
-      "max_tokens": 4096             // optional
+      "max_tokens": 4096,            // optional
+      "proxy": "socks5://127.0.0.1:1080"  // optional: proxy for the API
     }
   ],
   "agents": {
@@ -174,7 +175,8 @@ call.
 ```
 
 Env overrides: `CLAWDGET_API_BASE` `CLAWDGET_API_KEY` `CLAWDGET_MODEL`
-`CLAWDGET_HOME` `CLAWDGET_CONFIG` `CLAWDGET_CAINFO` `CLAWDGET_WX_TOKEN`.
+`CLAWDGET_PROXY` `CLAWDGET_HOME` `CLAWDGET_CONFIG` `CLAWDGET_CAINFO`
+`CLAWDGET_WX_TOKEN`.
 
 ## Skills
 

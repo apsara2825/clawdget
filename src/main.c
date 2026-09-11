@@ -383,6 +383,7 @@ int main(int argc, char **argv)
 	}
 
 	pc_http_ca_info = cfg.ca_info;
+	pc_http_proxy = cfg.api_proxy;
 
 	/* open session */
 	char picked[256];

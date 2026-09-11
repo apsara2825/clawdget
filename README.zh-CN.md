@@ -144,7 +144,8 @@ clawdget -r                     # 恢复旧对话：列表选序号继续聊
       "api_key": "sk-xxx",           // 你的 key
       "model": "deepseek-chat",      // 模型名
       "temperature": 0.7,            // 可选：随机度
-      "max_tokens": 4096             // 可选：单次回复上限
+      "max_tokens": 4096,            // 可选：单次回复上限
+      "proxy": "socks5://127.0.0.1:1080"  // 可选：API 请求走代理（境外接口必备）
     }
   ],
   "agents": {
@@ -163,7 +164,8 @@ clawdget -r                     # 恢复旧对话：列表选序号继续聊
 ```
 
 环境变量覆盖：`CLAWDGET_API_BASE`、`CLAWDGET_API_KEY`、`CLAWDGET_MODEL`、
-`CLAWDGET_HOME`、`CLAWDGET_CONFIG`、`CLAWDGET_CAINFO`、`CLAWDGET_WX_TOKEN`。
+`CLAWDGET_PROXY`、`CLAWDGET_HOME`、`CLAWDGET_CONFIG`、`CLAWDGET_CAINFO`、
+`CLAWDGET_WX_TOKEN`。
 
 ## Skills：教 AI 新技能（不用写代码）
 

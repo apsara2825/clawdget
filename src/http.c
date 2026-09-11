@@ -9,6 +9,7 @@
 #include "http.h"
 
 const char *pc_http_ca_info = NULL;
+const char *pc_http_proxy = NULL;   /* optional proxy for API requests */
 
 /* shared CA auto-detection: configured value, else well-known locations.
  * returns CAINFO file path / CAPATH dir string, or NULL if nothing found. */
@@ -178,6 +179,8 @@ static CURLcode common_setup(CURL *h, const char *url, const char *auth)
 	rc = curl_easy_setopt(h, CURLOPT_FOLLOWLOCATION, 1L);
 	curl_easy_setopt(h, CURLOPT_NOPROXY,
 			 "localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16");
+	if (pc_http_proxy && *pc_http_proxy)
+		curl_easy_setopt(h, CURLOPT_PROXY, pc_http_proxy);
 	if (rc) return rc;
 	rc = curl_easy_setopt(h, CURLOPT_CONNECTTIMEOUT, 30L);
 	if (rc) return rc;

@@ -150,6 +150,8 @@ int config_load(config_t *cfg, const char *path, int *created_template,
 				cfg->max_tokens = (int)v->valuedouble;
 			if ((v = cJSON_GetObjectItem(m, "stream")) && cJSON_IsBool(v))
 				cfg->stream = cJSON_IsTrue(v) ? 1 : 0;
+			if ((v = cJSON_GetObjectItem(m, "proxy")) && cJSON_IsString(v))
+				cfg->api_proxy = xstrdup(v->valuestring);
 		}
 		cJSON *ag = cJSON_GetObjectItem(root, "agents");
 		cJSON *def = ag ? cJSON_GetObjectItem(ag, "defaults") : NULL;
@@ -239,6 +241,7 @@ int config_load(config_t *cfg, const char *path, int *created_template,
 	pick_str(&cfg->tg_token, "CLAWDGET_TG_TOKEN");
 	pick_str(&cfg->tg_proxy, "CLAWDGET_TG_PROXY");
 	pick_str(&cfg->tg_base, "CLAWDGET_TG_BASE");
+	pick_str(&cfg->api_proxy, "CLAWDGET_PROXY");
 
 	if (!cfg->workspace) {
 		char ws[1024];
@@ -265,6 +268,7 @@ void config_free(config_t *cfg)
 	free(cfg->allow_paths);
 	free(cfg->wx_token);
 	free(cfg->wx_proxy);
+	free(cfg->api_proxy);
 	free(cfg->tg_token);
 	free(cfg->tg_proxy);
 	for (int i = 0; i < cfg->wx_n_allow; i++)

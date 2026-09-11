@@ -8,6 +8,10 @@
 /* optional: path to CA bundle PEM; set before any http call (NULL = libcurl default) */
 extern const char *pc_http_ca_info;
 
+/* optional: proxy URL for API requests; set before any http call
+ * (NULL = honor environment proxy, with local ranges always bypassed) */
+extern const char *pc_http_proxy;
+
 /* auto-detected CA location (file or dir); NULL if none found.
  * buf used when the caller's config supplied nothing. */
 const char *pc_http_ca_default(char *buf, size_t bufsz);

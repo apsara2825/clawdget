@@ -53,4 +53,4 @@ class H(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(payload)
     def log_message(self, *a): pass
-HTTPServer(("127.0.0.1", 8793), H).serve_forever()
+HTTPServer(("0.0.0.0", 8793), H).serve_forever()

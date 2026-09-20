@@ -1,10 +1,4 @@
 {
   "model_list": [{"api_base": "http://172.17.144.61:8793/v1", "api_key": "k", "model": "m"}],
-  "channels": {
-    "telegram": {
-      "token": "123:TEST",
-      "base_url": "http://172.17.144.61:8793",
-      "proxy": "http://demo:secret@127.0.0.1:8899"
-    }
-  }
+  "channels": {"telegram": {"token": "123:TEST", "base_url": "http://172.17.144.61:8793"}}
 }

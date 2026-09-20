@@ -152,6 +152,10 @@ int config_load(config_t *cfg, const char *path, int *created_template,
 				cfg->stream = cJSON_IsTrue(v) ? 1 : 0;
 			if ((v = cJSON_GetObjectItem(m, "proxy")) && cJSON_IsString(v))
 				cfg->api_proxy = xstrdup(v->valuestring);
+			if ((v = cJSON_GetObjectItem(m, "protocol")) && cJSON_IsString(v)) {
+				if (!strcmp(v->valuestring, "anthropic"))
+					cfg->protocol = PROTO_ANTHROPIC;
+			}
 		}
 		cJSON *ag = cJSON_GetObjectItem(root, "agents");
 		cJSON *def = ag ? cJSON_GetObjectItem(ag, "defaults") : NULL;
@@ -231,6 +235,12 @@ int config_load(config_t *cfg, const char *path, int *created_template,
 		}
 		cJSON_Delete(root);
 	}
+
+	/* auto-detect: api_base containing /anthropic speaks the Anthropic
+	 * Messages protocol (e.g. BigModel's /api/anthropic) */
+	if (cfg->protocol == PROTO_OPENAI && cfg->api_base &&
+	    strstr(cfg->api_base, "/anthropic"))
+		cfg->protocol = PROTO_ANTHROPIC;
 
 	/* env overrides */
 	pick_str(&cfg->api_base, "CLAWDGET_API_BASE");

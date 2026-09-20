@@ -5,6 +5,9 @@
 
 #include <stddef.h>
 
+#define PROTO_OPENAI    0
+#define PROTO_ANTHROPIC 1
+
 typedef struct {
 	char       *api_base;   /* e.g. https://api.deepseek.com/v1 */
 	char       *api_key;
@@ -16,6 +19,7 @@ typedef struct {
 	int         show_tool_calls;  /* default 1: print [tool] lines */
 	int         max_history;      /* sliding window, 0 = unlimited */
 	int         stream;           /* default 1 */
+	int         protocol;         /* PROTO_OPENAI(0, default) / PROTO_ANTHROPIC(1) */
 	char       *ca_info;          /* path to CA bundle PEM (optional) */
 	char       *api_proxy;        /* proxy for LLM API requests (optional) */
 	char       *workspace;        /* default {home}/workspace */

@@ -20,6 +20,9 @@ const char *pc_http_ca_default(char *buf, size_t bufsz);
  * CAINFO for files). configured: caller's ca_info or NULL. */
 void pc_http_apply_ca(CURL *h, const char *configured);
 
+/* 1 if the URL host is loopback/private (proxy should be bypassed) */
+int pc_http_url_is_local(const char *url);
+
 /* callback invoked for each complete SSE `data:` payload line (after "data: ").
  * Also invoked for other event lines' payloads; caller filters. */
 typedef void (*pc_sse_cb)(const char *payload, void *ud);

@@ -95,6 +95,8 @@ static int do_request(const wx_api_t *api, const char *url, const char *post_bod
 	build_headers(api, skip_auth, &hdrs);
 
 	curl_easy_setopt(h, CURLOPT_URL, url);
+	if (pc_http_url_is_local(url))
+		curl_easy_setopt(h, CURLOPT_PROXY, "");
 	curl_easy_setopt(h, CURLOPT_HTTPHEADER, hdrs);
 	curl_easy_setopt(h, CURLOPT_WRITEFUNCTION, accum_cb);
 	curl_easy_setopt(h, CURLOPT_WRITEDATA, &c);

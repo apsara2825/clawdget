@@ -13,6 +13,35 @@ const char *pc_http_proxy = NULL;   /* optional proxy for API requests */
 
 /* shared CA auto-detection: configured value, else well-known locations.
  * returns CAINFO file path / CAPATH dir string, or NULL if nothing found. */
+int pc_http_url_is_local(const char *url)
+{
+	const char *p = strstr(url, "://");
+	p = p ? p + 3 : url;
+	const char *slash = strchr(p, '/');
+	size_t hl = slash ? (size_t)(slash - p) : strlen(p);
+	if (hl >= 256)
+		return 0;
+	char host[256];
+	memcpy(host, p, hl);
+	host[hl] = 0;
+	char *colon = strrchr(host, ':');
+	if (colon)
+		*colon = 0;
+	if (!strcmp(host, "localhost") || !strcmp(host, "::1"))
+		return 1;
+	if (!strncmp(host, "127.", 4) || !strncmp(host, "10.", 3) ||
+	    !strncmp(host, "192.168.", 8))
+		return 1;
+	if (!strncmp(host, "172.", 4)) {
+		int second = atoi(host + 4);
+		if (second >= 16 && second <= 31)
+			return 1;
+	}
+	if (!strchr(host, '.'))
+		return 1; /* no dot: local hostname */
+	return 0;
+}
+
 void pc_http_apply_ca(CURL *h, const char *configured)
 {
 	char buf[256];
@@ -306,6 +335,112 @@ int http_get(const char *url, const char *auth_bearer, size_t max_bytes,
 	free(r.w.acc);
 	curl_easy_cleanup(h);
 	return ret;
+}
+
+int http_post_stream_h(const char *url, const char *const *headers,
+		       const char *body, pc_sse_cb cb, void *ud,
+		       pc_http_result *res)
+{
+	memset(res, 0, sizeof(*res));
+	CURL *h = curl_easy_init();
+	if (!h)
+		return -1;
+	wctx_t w;
+	memset(&w, 0, sizeof(w));
+	w.lc.cb = cb;
+	w.lc.ud = ud;
+	w.lc.cap = 4096;
+	w.lc.linebuf = malloc(w.lc.cap);
+	req_t r;
+	memset(&r, 0, sizeof(r));
+	r.h = h;
+	r.w = w;
+	struct curl_slist *hdrs = NULL;
+	hdrs = curl_slist_append(hdrs, "Content-Type: application/json");
+	for (int i = 0; headers && headers[i]; i++)
+		hdrs = curl_slist_append(hdrs, headers[i]);
+	curl_easy_setopt(h, CURLOPT_URL, url);
+	if (pc_http_url_is_local(url))
+		curl_easy_setopt(h, CURLOPT_PROXY, "");
+	curl_easy_setopt(h, CURLOPT_HTTPHEADER, hdrs);
+	curl_easy_setopt(h, CURLOPT_WRITEFUNCTION, write_cb_entry);
+	curl_easy_setopt(h, CURLOPT_WRITEDATA, &r);
+	curl_easy_setopt(h, CURLOPT_NOSIGNAL, 1L);
+	curl_easy_setopt(h, CURLOPT_CONNECTTIMEOUT, 30L);
+	curl_easy_setopt(h, CURLOPT_LOW_SPEED_LIMIT, 1L);
+	curl_easy_setopt(h, CURLOPT_LOW_SPEED_TIME, 90L);
+	curl_easy_setopt(h, CURLOPT_NOPROXY,
+			 "localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16");
+	if (pc_http_proxy && *pc_http_proxy)
+		curl_easy_setopt(h, CURLOPT_PROXY, pc_http_proxy);
+	curl_easy_setopt(h, CURLOPT_POST, 1L);
+	curl_easy_setopt(h, CURLOPT_POSTFIELDS, body);
+	curl_easy_setopt(h, CURLOPT_POSTFIELDSIZE, (long)strlen(body));
+	CURLcode rc = curl_easy_perform(h);
+	curl_slist_free_all(hdrs);
+	curl_easy_cleanup(h);
+	free(w.lc.linebuf);
+	free(w.acc);
+	return rc == CURLE_OK ? 0 : -1;
+}
+
+int http_post_collect_h(const char *url, const char *const *headers,
+			const char *body, size_t max_bytes,
+			char **out, pc_http_result *res)
+{
+	memset(res, 0, sizeof(*res));
+	*out = NULL;
+	CURL *h = curl_easy_init();
+	if (!h)
+		return -1;
+	wctx_t w;
+	memset(&w, 0, sizeof(w));
+	w.collect = 1;
+	w.max_acc = max_bytes;
+	w.acc_cap = max_bytes + 1;
+	w.acc = malloc(w.acc_cap);
+	w.acc[0] = 0;
+	struct curl_slist *hdrs = NULL;
+	hdrs = curl_slist_append(hdrs, "Content-Type: application/json");
+	for (int i = 0; headers && headers[i]; i++)
+		hdrs = curl_slist_append(hdrs, headers[i]);
+	curl_easy_setopt(h, CURLOPT_URL, url);
+	if (pc_http_url_is_local(url))
+		curl_easy_setopt(h, CURLOPT_PROXY, "");
+	curl_easy_setopt(h, CURLOPT_HTTPHEADER, hdrs);
+	req_t r2;
+	memset(&r2, 0, sizeof(r2));
+	r2.h = h;
+	r2.w = w;
+	curl_easy_setopt(h, CURLOPT_URL, url);
+	if (pc_http_url_is_local(url))
+		curl_easy_setopt(h, CURLOPT_PROXY, "");
+	curl_easy_setopt(h, CURLOPT_HTTPHEADER, hdrs);
+	curl_easy_setopt(h, CURLOPT_WRITEFUNCTION, write_cb_entry);
+	curl_easy_setopt(h, CURLOPT_WRITEDATA, &r2);
+	curl_easy_setopt(h, CURLOPT_NOSIGNAL, 1L);
+	curl_easy_setopt(h, CURLOPT_CONNECTTIMEOUT, 30L);
+	curl_easy_setopt(h, CURLOPT_NOPROXY,
+			 "localhost,127.0.0.1,::1,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16");
+	if (pc_http_proxy && *pc_http_proxy)
+		curl_easy_setopt(h, CURLOPT_PROXY, pc_http_proxy);
+	curl_easy_setopt(h, CURLOPT_POST, 1L);
+	curl_easy_setopt(h, CURLOPT_POSTFIELDS, body);
+	curl_easy_setopt(h, CURLOPT_POSTFIELDSIZE, (long)strlen(body));
+	CURLcode rc = curl_easy_perform(h);
+	long code = 0;
+	curl_easy_getinfo(h, CURLINFO_RESPONSE_CODE, &code);
+	res->http_code = code;
+	curl_slist_free_all(hdrs);
+	curl_easy_cleanup(h);
+	if (rc != CURLE_OK) {
+		snprintf(res->curl_err, sizeof(res->curl_err), "%s",
+			 curl_easy_strerror(rc));
+		free(w.acc);
+		return -1;
+	}
+	*out = w.acc;
+	return 0;
 }
 
 int http_post_collect(const char *url, const char *auth_bearer,

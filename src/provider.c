@@ -531,7 +531,7 @@ int provider_chat(const config_t *cfg, cJSON *messages, cJSON *tools_defs,
 		int rc = anth
 			     ? http_post_stream_h(url, hdrs, reqbody, on_data_dispatch,
 						  &st, &res)
-			     : http_post_stream(url, auth_bearer, reqbody,
+			     : http_post_stream(url, cfg->api_key, reqbody,
 						on_data_dispatch, &st, &res);
 		pc_thinking_stop();
 		if (out_stream)
@@ -602,7 +602,8 @@ int provider_chat_collect(const config_t *cfg, cJSON *messages, cJSON *tools_def
 		hdrs[nh++] = ak;
 		hdrs[nh++] = "anthropic-version: 2023-06-01";
 	} else {
-		snprintf(auth_bearer, sizeof(auth_bearer), "Bearer %s", cfg->api_key);
+		snprintf(auth_bearer, sizeof(auth_bearer),
+			 "Authorization: Bearer %s", cfg->api_key);
 		hdrs[nh++] = auth_bearer;
 	}
 
